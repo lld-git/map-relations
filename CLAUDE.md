@@ -10,6 +10,9 @@ Esta fase pesquisa o método em Python. O porte para TypeScript só ocorre após
 ## Rotina de sessão
 No início de cada sessão, leia CLAUDE.md e docs/status.md antes de agir.
 Ao concluir um bloco ou antes de compactar, atualize docs/status.md.
+Ao concluir cada bloco, grave o relatório de conclusão verbatim em
+docs/blocks/<bloco>.md antes de pedir revisão, com commit e data no topo
+e uma seção "Revisão humana" vazia para o humano preencher.
 Registre decisões relevantes em docs/adr/.
 Grave artefatos aprovados pelo humano em arquivo imediatamente; nunca dependa só da conversa.
 
