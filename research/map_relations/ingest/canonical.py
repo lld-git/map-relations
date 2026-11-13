@@ -46,7 +46,7 @@ def _despace(line: str) -> str:
     return line
 
 
-def _is_explicit_heading(line: str) -> bool:
+def is_explicit_heading(line: str) -> bool:
     """Título que casa um padrão explícito de capítulo (Capítulo N, romanos),
     inclusive com letras espaçadas."""
     line = line.strip()
@@ -68,14 +68,14 @@ def _is_uppercase_heading(line: str) -> bool:
 
 
 def _is_chapter_heading(line: str) -> bool:
-    return _is_explicit_heading(line) or _is_uppercase_heading(line)
+    return is_explicit_heading(line) or _is_uppercase_heading(line)
 
 
 def classify_headings(texts: list[str]) -> tuple[list[bool], list[str]]:
     """Precedência de títulos (genérica, sem regra de livro específico):
     com títulos explícitos, só eles numeram capítulos — maiúsculas viram texto
     com alerta; sem nenhum explícito, maiúsculas numeram, com alerta."""
-    explicit = [_is_explicit_heading(t) for t in texts]
+    explicit = [is_explicit_heading(t) for t in texts]
     upper_only = [_is_uppercase_heading(t) and not e for t, e in zip(texts, explicit)]
     alerts: list[str] = []
     if any(explicit):

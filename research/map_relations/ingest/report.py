@@ -11,6 +11,8 @@ from pathlib import Path
 
 from map_relations.core.ingest_contract import IngestResult, ParagraphKind
 
+from .alerts import ConversionAlert
+
 _FIRST_LINE_CHARS = 120
 
 
@@ -21,7 +23,12 @@ def _first_content_line(result: IngestResult, chapter: int) -> str:
     return "(capítulo sem parágrafos de texto)"
 
 
-def render_report(result: IngestResult) -> str:
+def render_report(
+    result: IngestResult,
+    *,
+    conversion_alerts: list[ConversionAlert] | None = None,
+    edited: bool = False,
+) -> str:
     q = result.quality
     lines = [
         f"# Relatório de ingestão — {result.source.title}",
@@ -57,11 +64,27 @@ def render_report(result: IngestResult) -> str:
         lines.append("(nenhum)")
     lines.append("")
 
-    lines.extend(["## Alertas", ""])
+    lines.extend(["## Alertas (documento.md atual)", ""])
     if q.alerts:
         lines.extend(f"- {alert}" for alert in q.alerts)
     else:
         lines.append("(nenhum)")
+    lines.append("")
+
+    lines.extend(["## Da conversão (antes da revisão)", ""])
+    if not conversion_alerts:
+        lines.append("(nenhum)")
+    else:
+        estado = (
+            "documento.md foi editado desde a conversão"
+            if edited
+            else "documento.md igual ao gerado (ainda não revisado)"
+        )
+        lines.append(f"_{estado}._")
+        lines.append("")
+        for ca in conversion_alerts:
+            marca = "✓ resolvido" if ca.resolved else "• ativo"
+            lines.append(f"- [{marca}] {ca.message}")
     lines.append("")
     return "\n".join(lines)
 

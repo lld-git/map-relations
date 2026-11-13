@@ -20,12 +20,13 @@ import sys
 from pathlib import Path
 
 from map_relations.core.ingest_contract import IngestResult, RemovedItem
+from map_relations.ingest.alerts import ConversionAlert, classify_conversion_alerts
 from map_relations.ingest.canonical import build_ingest_result, pdf_pages_to_blocks
 from map_relations.ingest.convert_docling import docling_to_blocks
 from map_relations.ingest.convert_pandoc import convert_pandoc
 from map_relations.ingest.convert_txt import txt_to_blocks
 from map_relations.ingest.docling_compare import compare, load_docling_json
-from map_relations.ingest.markdown import parse_markdown, render_markdown
+from map_relations.ingest.markdown import md_hash, parse_markdown, render_markdown
 from map_relations.ingest.pdf_loader import extract_pages
 from map_relations.ingest.report import render_report
 from map_relations.ingest.store import ProcessedStore, file_hash
@@ -86,11 +87,13 @@ def _generate_md(store: ProcessedStore, path: Path, source_hash: str, kind: str,
     else:  # pandoc
         blocks, removed, alerts = convert_pandoc(path)
 
-    store.documento_md(source_hash).write_text(render_markdown(blocks), encoding="utf-8")
+    md = render_markdown(blocks)
+    store.documento_md(source_hash).write_text(md, encoding="utf-8")
     (out_dir / "conversao.json").write_text(
         json.dumps(
             {
                 "rota": route if kind == "pdf" else kind,
+                "md_sha256": md_hash(md),  # hash do .md gerado — detecta edição
                 "alertas": alerts,
                 "removidos": [r.model_dump(by_alias=True) for r in removed],
             },
@@ -102,16 +105,25 @@ def _generate_md(store: ProcessedStore, path: Path, source_hash: str, kind: str,
     return 0
 
 
-def _parse_existing(store: ProcessedStore, source_hash: str, title: str, kind: str) -> IngestResult:
+def _parse_existing(
+    store: ProcessedStore, source_hash: str, title: str, kind: str
+) -> tuple[IngestResult, list[ConversionAlert], bool]:
+    """Parseia o documento.md atual. Alertas do parser saem em quality.alerts
+    (sempre sobre o .md atual); os da conversão vêm classificados à parte."""
     md = store.documento_md(source_hash).read_text(encoding="utf-8")
     removed: list[RemovedItem] = []
-    alerts: list[str] = []
+    conv_alerts: list[str] = []
+    generated_hash = ""
     conv = store.dir_for(source_hash) / "conversao.json"
     if conv.is_file():
         data = json.loads(conv.read_text(encoding="utf-8"))
-        alerts = list(data.get("alertas", []))
+        conv_alerts = list(data.get("alertas", []))
+        generated_hash = data.get("md_sha256", "")
         removed = [RemovedItem.model_validate(r) for r in data.get("removidos", [])]
-    return parse_markdown(md, title, kind, removed=removed, extra_alerts=alerts)
+    edited = bool(generated_hash) and md_hash(md) != generated_hash
+    result = parse_markdown(md, title, kind, removed=removed)
+    classified = classify_conversion_alerts(conv_alerts, md, edited)
+    return result, classified, edited
 
 
 def cmd_ingest(name: str, route: str, force_md: bool) -> int:
@@ -136,14 +148,17 @@ def cmd_ingest(name: str, route: str, force_md: bool) -> int:
             if code != 0:
                 return code
 
-        result = _parse_existing(store, source_hash, path.stem, kind)
+        result, conv_alerts, edited = _parse_existing(store, source_hash, path.stem, kind)
         out_dir = store.dir_for(source_hash)
         (out_dir / "canonical.txt").write_text(result.text, encoding="utf-8")
         (out_dir / "ingest.json").write_text(
             result.model_dump_json(by_alias=True, exclude={"text"}, indent=2),
             encoding="utf-8",
         )
-        (out_dir / "report.md").write_text(render_report(result), encoding="utf-8")
+        (out_dir / "report.md").write_text(
+            render_report(result, conversion_alerts=conv_alerts, edited=edited),
+            encoding="utf-8",
+        )
     except Exception as exc:  # noqa: BLE001 — CLI converte qualquer falha em exit code
         print(f"erro ao processar {path.name}: {exc}", file=sys.stderr)
         return 1
@@ -160,6 +175,13 @@ def cmd_ingest(name: str, route: str, force_md: bool) -> int:
     )
     for alert in q.alerts:
         print(f"  alerta: {alert}")
+    if conv_alerts:
+        ativos = sum(not c.resolved for c in conv_alerts)
+        resolvidos = len(conv_alerts) - ativos
+        estado = "editado" if edited else "não revisado"
+        print(
+            f"conversão ({estado}): {ativos} alertas ativos, {resolvidos} resolvidos"
+        )
     return 0
 
 

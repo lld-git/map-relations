@@ -17,7 +17,7 @@ from map_relations.core.ingest_contract import (
     RemovedItem,
 )
 
-from .canonical import _is_explicit_heading
+from .canonical import is_explicit_heading
 from .markdown import MdBlock
 
 _HEADER_LABELS = {"title", "section_header"}
@@ -82,10 +82,10 @@ def docling_to_blocks(
             continue
         items.append((label, text, _first_page(item)))
 
-    has_explicit = any(_is_explicit_heading(t) for _, t, _ in items)
+    has_explicit = any(is_explicit_heading(t) for _, t, _ in items)
     previous_was_title = False
     for label, text, page in items:
-        if _is_explicit_heading(text):
+        if is_explicit_heading(text):
             blocks.append(MdBlock(text, ParagraphKind.titulo, page))
             previous_was_title = True
             continue

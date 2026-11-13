@@ -14,7 +14,7 @@ from typing import Any
 
 from map_relations.core.ingest_contract import IngestResult
 
-from .canonical import _despace, _is_explicit_heading
+from .canonical import _despace, is_explicit_heading
 
 # labels do DoclingDocument que interessam à comparação
 _HEADER_LABELS = {"title", "section_header"}
@@ -49,8 +49,8 @@ def compare(result: IngestResult, doc: dict[str, Any]) -> str:
     body = [i for i in items if i["label"] not in _PAGE_EDGE_LABELS]
 
     chapter_titles = {_norm_title(c.title) for c in result.chapters}
-    explicit_headers = [h for h in headers if _is_explicit_heading(h["text"])]
-    other_headers = [h for h in headers if not _is_explicit_heading(h["text"])]
+    explicit_headers = [h for h in headers if is_explicit_heading(h["text"])]
+    other_headers = [h for h in headers if not is_explicit_heading(h["text"])]
 
     first_chapter_page = min(
         (h["pages"][0] for h in explicit_headers if h["pages"]), default=None

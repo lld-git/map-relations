@@ -13,6 +13,7 @@ a convenção; o parser des-escapa ao montar o texto canônico.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -42,6 +43,14 @@ class MdBlock:
     text: str
     kind: ParagraphKind = ParagraphKind.texto
     page: int | None = None
+
+
+def md_hash(md: str) -> str:
+    """sha256 do documento.md literal — detecta edição humana (ADR 008).
+
+    Distinto do content_hash (sha256 do texto canônico NFC): este compara o
+    arquivo editável, aquele o derivado sem marcação."""
+    return hashlib.sha256(md.encode("utf-8")).hexdigest()
 
 
 def escape_md(text: str) -> str:
@@ -74,7 +83,7 @@ def render_markdown(blocks: list[MdBlock]) -> str:
     return "\n\n".join(out) + ("\n" if out else "")
 
 
-def _parse_blocks(md: str) -> list[MdBlock]:
+def parse_blocks(md: str) -> list[MdBlock]:
     """Lê o Markdown da convenção de volta para blocos lógicos."""
     blocks: list[MdBlock] = []
     page: int | None = None
@@ -126,7 +135,7 @@ def parse_markdown(
     parágrafos com página, capítulos, subtítulos, QualityReport)."""
     removed = removed or []
     alerts = list(extra_alerts or [])
-    blocks = _parse_blocks(md)
+    blocks = parse_blocks(md)
     for b in blocks:
         b.text = nfc(b.text)
 
