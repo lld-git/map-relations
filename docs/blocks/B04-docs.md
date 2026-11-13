@@ -1,5 +1,5 @@
 # B04-docs — Documentação, CLI, Makefile e mapa do projeto
-Commit: 585ea14
+Commit: 3a4bd4c
 Data: 2026-11-11
 
 ## Relatório de conclusão (verbatim)
