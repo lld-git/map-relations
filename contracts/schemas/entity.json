@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "EntityKind": {
+      "enum": [
+        "pessoa",
+        "grupo",
+        "lugar",
+        "objeto",
+        "evento"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/EntityKind"
+    },
+    "preferredName": {
+      "title": "Preferredname",
+      "type": "string"
+    },
+    "projectId": {
+      "title": "Projectid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "projectId",
+    "preferredName",
+    "kind"
+  ],
+  "title": "Entity",
+  "type": "object"
+}

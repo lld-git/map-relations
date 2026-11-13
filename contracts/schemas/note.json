@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "NoteKind": {
+      "enum": [
+        "comment",
+        "correction",
+        "question",
+        "observation"
+      ],
+      "title": "NoteKind",
+      "type": "string"
+    },
+    "TargetType": {
+      "enum": [
+        "claim",
+        "participation",
+        "entity"
+      ],
+      "title": "TargetType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "content": {
+      "title": "Content",
+      "type": "string"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/NoteKind"
+    },
+    "targetId": {
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetType": {
+      "$ref": "#/$defs/TargetType"
+    }
+  },
+  "required": [
+    "targetType",
+    "targetId",
+    "kind",
+    "content"
+  ],
+  "title": "Note",
+  "type": "object"
+}

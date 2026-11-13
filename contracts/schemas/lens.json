@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "LensEvidenceRule": {
+      "enum": [
+        "required",
+        "optional",
+        "forbidden"
+      ],
+      "title": "LensEvidenceRule",
+      "type": "string"
+    },
+    "LensRetrieval": {
+      "enum": [
+        "full",
+        "windowed",
+        "semantic"
+      ],
+      "title": "LensRetrieval",
+      "type": "string"
+    },
+    "LensScope": {
+      "enum": [
+        "document",
+        "chapter",
+        "segment"
+      ],
+      "title": "LensScope",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "evidenceRule": {
+      "$ref": "#/$defs/LensEvidenceRule"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "maxCalls": {
+      "title": "Maxcalls",
+      "type": "integer"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "relationTypes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Relationtypes",
+      "type": "array"
+    },
+    "retrieval": {
+      "$ref": "#/$defs/LensRetrieval"
+    },
+    "scope": {
+      "$ref": "#/$defs/LensScope"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "question",
+    "relationTypes",
+    "scope",
+    "retrieval",
+    "evidenceRule",
+    "maxCalls"
+  ],
+  "title": "Lens",
+  "type": "object"
+}

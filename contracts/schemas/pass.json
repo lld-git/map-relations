@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "PassStopReason": {
+      "enum": [
+        "max_calls",
+        "no_new_claims",
+        "error",
+        "completed"
+      ],
+      "title": "PassStopReason",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "calls": {
+      "title": "Calls",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lensId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lensid"
+    },
+    "level": {
+      "title": "Level",
+      "type": "integer"
+    },
+    "proposed": {
+      "title": "Proposed",
+      "type": "integer"
+    },
+    "stopReason": {
+      "$ref": "#/$defs/PassStopReason"
+    },
+    "target": {
+      "title": "Target",
+      "type": "string"
+    },
+    "verified": {
+      "title": "Verified",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "level",
+    "target",
+    "calls",
+    "proposed",
+    "verified",
+    "stopReason"
+  ],
+  "title": "Pass",
+  "type": "object"
+}

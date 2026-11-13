@@ -14,7 +14,8 @@ jobs:
           version: "latest"
       - run: uv sync
       - run: uv run ruff check .
-      - run: uv run mypy research tests
+      - run: uv run mypy research tests scripts
+      - run: uv run python -m scripts.generate_schemas --check
       - run: uv run pytest -m "not requires_spacy_model"
 
   test-spacy:

@@ -8,6 +8,7 @@ services:
       - ./research:/app/research
       - ./tests:/app/tests
       - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
       - ./eval:/app/eval
       - ./data:/app/data
     env_file:

@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+from research.map_relations.core.ids import nfc
+
 from .document import Source, compute_text_hash
 
 
@@ -16,7 +18,7 @@ def _normalize_text(text: str) -> str:
     text = re.sub(r"-\n", "", text)         # junta palavras hifenizadas no fim da linha
     text = re.sub(r"[^\S\n]+", " ", text)   # colapsa espaços dentro da linha, preserva \n
     text = re.sub(r"\n{3,}", "\n\n", text)  # normaliza múltiplas linhas em branco
-    return text.strip()
+    return nfc(text.strip())                # offsets contam code points sobre NFC (ADR 004)
 
 
 def load_pdf(path: str | Path) -> tuple[Source, str]:

@@ -1,0 +1,44 @@
+{
+  "properties": {
+    "chapter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chapter"
+    },
+    "endOffset": {
+      "title": "Endoffset",
+      "type": "integer"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "sourceId": {
+      "title": "Sourceid",
+      "type": "string"
+    },
+    "startOffset": {
+      "title": "Startoffset",
+      "type": "integer"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "startOffset",
+    "endOffset",
+    "sourceId",
+    "text"
+  ],
+  "title": "Segment",
+  "type": "object"
+}

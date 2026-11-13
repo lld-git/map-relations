@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "TargetType": {
+      "enum": [
+        "claim",
+        "participation",
+        "entity"
+      ],
+      "title": "TargetType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "endOffset": {
+      "title": "Endoffset",
+      "type": "integer"
+    },
+    "evidenceKey": {
+      "title": "Evidencekey",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "quote": {
+      "title": "Quote",
+      "type": "string"
+    },
+    "sourceId": {
+      "title": "Sourceid",
+      "type": "string"
+    },
+    "startOffset": {
+      "title": "Startoffset",
+      "type": "integer"
+    },
+    "targetId": {
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetType": {
+      "$ref": "#/$defs/TargetType"
+    }
+  },
+  "required": [
+    "startOffset",
+    "endOffset",
+    "evidenceKey",
+    "targetType",
+    "targetId",
+    "sourceId",
+    "quote"
+  ],
+  "title": "Evidence",
+  "type": "object"
+}

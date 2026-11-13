@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "contentHash": {
+      "title": "Contenthash",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "title": "Kind",
+      "type": "string"
+    },
+    "publishedAt": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Publishedat"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "kind",
+    "contentHash"
+  ],
+  "title": "Source",
+  "type": "object"
+}

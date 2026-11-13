@@ -5,6 +5,8 @@ Mudanças: retorna (Source, str); calcula content_hash do texto extraído normal
 
 import trafilatura
 
+from research.map_relations.core.ids import nfc
+
 from .document import Source, compute_text_hash
 
 
@@ -18,7 +20,8 @@ def load_url(url: str) -> tuple[Source, str]:
         raise ValueError(f"Não foi possível baixar: {url}")
 
     metadata = trafilatura.extract_metadata(downloaded)
-    text = trafilatura.extract(downloaded) or ""
+    # offsets contam code points sobre texto NFC (ADR 004)
+    text = nfc(trafilatura.extract(downloaded) or "")
     title = metadata.title if metadata and metadata.title else url
 
     source = Source(

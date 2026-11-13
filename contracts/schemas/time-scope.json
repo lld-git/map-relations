@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "TargetType": {
+      "enum": [
+        "claim",
+        "participation",
+        "entity"
+      ],
+      "title": "TargetType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chapter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chapter"
+    },
+    "duration": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duration"
+    },
+    "publishedAt": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Publishedat"
+    },
+    "storyOrder": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Storyorder"
+    },
+    "storyTime": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Storytime"
+    },
+    "targetId": {
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetType": {
+      "$ref": "#/$defs/TargetType"
+    }
+  },
+  "required": [
+    "targetType",
+    "targetId"
+  ],
+  "title": "TimeScope",
+  "type": "object"
+}

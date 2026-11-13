@@ -1,0 +1,37 @@
+{
+  "properties": {
+    "endOffset": {
+      "title": "Endoffset",
+      "type": "integer"
+    },
+    "entityId": {
+      "title": "Entityid",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "segmentId": {
+      "title": "Segmentid",
+      "type": "string"
+    },
+    "startOffset": {
+      "title": "Startoffset",
+      "type": "integer"
+    },
+    "surface": {
+      "title": "Surface",
+      "type": "string"
+    }
+  },
+  "required": [
+    "startOffset",
+    "endOffset",
+    "entityId",
+    "segmentId",
+    "surface"
+  ],
+  "title": "Mention",
+  "type": "object"
+}

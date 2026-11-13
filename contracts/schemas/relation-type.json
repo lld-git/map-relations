@@ -1,0 +1,56 @@
+{
+  "$defs": {
+    "EntityKind": {
+      "enum": [
+        "pessoa",
+        "grupo",
+        "lugar",
+        "objeto",
+        "evento"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "definition": {
+      "title": "Definition",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "objectKinds": {
+      "items": {
+        "$ref": "#/$defs/EntityKind"
+      },
+      "title": "Objectkinds",
+      "type": "array"
+    },
+    "subjectKinds": {
+      "items": {
+        "$ref": "#/$defs/EntityKind"
+      },
+      "title": "Subjectkinds",
+      "type": "array"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "label",
+    "definition",
+    "subjectKinds",
+    "objectKinds",
+    "version"
+  ],
+  "title": "RelationType",
+  "type": "object"
+}

@@ -4,7 +4,6 @@ Em CI a imagem roda como appuser (sem override de user: no compose),
 então este teste garante que o usuário da imagem consegue criar arquivos
 no caminho interno /app/eval/runs/ — que não é bind-mounted em CI.
 """
-import os
 from pathlib import Path
 
 

@@ -1,0 +1,69 @@
+{
+  "$defs": {
+    "ClaimState": {
+      "enum": [
+        "proposta",
+        "verificada",
+        "rejeitada",
+        "confirmada_humano",
+        "rejeitada_humano"
+      ],
+      "title": "ClaimState",
+      "type": "string"
+    },
+    "Role": {
+      "enum": [
+        "autor",
+        "alvo",
+        "testemunha",
+        "beneficiario",
+        "participante"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "entityId": {
+      "title": "Entityid",
+      "type": "string"
+    },
+    "eventId": {
+      "title": "Eventid",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "participationKey": {
+      "title": "Participationkey",
+      "type": "string"
+    },
+    "passId": {
+      "title": "Passid",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/Role"
+    },
+    "state": {
+      "$ref": "#/$defs/ClaimState",
+      "default": "proposta"
+    }
+  },
+  "required": [
+    "participationKey",
+    "eventId",
+    "entityId",
+    "role",
+    "confidence",
+    "passId"
+  ],
+  "title": "Participation",
+  "type": "object"
+}

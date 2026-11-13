@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "ClaimClass": {
+      "enum": [
+        "afirmada",
+        "inferida",
+        "coocorrencia",
+        "interpretacao"
+      ],
+      "title": "ClaimClass",
+      "type": "string"
+    },
+    "ClaimState": {
+      "enum": [
+        "proposta",
+        "verificada",
+        "rejeitada",
+        "confirmada_humano",
+        "rejeitada_humano"
+      ],
+      "title": "ClaimState",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "claimKey": {
+      "title": "Claimkey",
+      "type": "string"
+    },
+    "class": {
+      "$ref": "#/$defs/ClaimClass"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "objectId": {
+      "title": "Objectid",
+      "type": "string"
+    },
+    "passId": {
+      "title": "Passid",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/ClaimState",
+      "default": "proposta"
+    },
+    "subjectId": {
+      "title": "Subjectid",
+      "type": "string"
+    },
+    "typeId": {
+      "title": "Typeid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "claimKey",
+    "subjectId",
+    "typeId",
+    "objectId",
+    "class",
+    "confidence",
+    "passId"
+  ],
+  "title": "Claim",
+  "type": "object"
+}

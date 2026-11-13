@@ -1,0 +1,32 @@
+{
+  "properties": {
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "entityId": {
+      "title": "Entityid",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "entityId",
+    "name",
+    "source",
+    "confidence"
+  ],
+  "title": "Alias",
+  "type": "object"
+}

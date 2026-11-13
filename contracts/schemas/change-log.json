@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "Actor": {
+      "enum": [
+        "auto",
+        "humano"
+      ],
+      "title": "Actor",
+      "type": "string"
+    },
+    "ChangeAction": {
+      "enum": [
+        "create",
+        "update",
+        "delete",
+        "state_change"
+      ],
+      "title": "ChangeAction",
+      "type": "string"
+    },
+    "TargetType": {
+      "enum": [
+        "claim",
+        "participation",
+        "entity"
+      ],
+      "title": "TargetType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/ChangeAction"
+    },
+    "actor": {
+      "$ref": "#/$defs/Actor"
+    },
+    "after": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "After"
+    },
+    "before": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Before"
+    },
+    "createdAt": {
+      "format": "date-time",
+      "title": "Createdat",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "passId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Passid"
+    },
+    "runId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runid"
+    },
+    "targetId": {
+      "title": "Targetid",
+      "type": "string"
+    },
+    "targetType": {
+      "$ref": "#/$defs/TargetType"
+    }
+  },
+  "required": [
+    "action",
+    "actor",
+    "targetType",
+    "targetId"
+  ],
+  "title": "ChangeLog",
+  "type": "object"
+}

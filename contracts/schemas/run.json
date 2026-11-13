@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "RunStatus": {
+      "enum": [
+        "running",
+        "done",
+        "failed",
+        "aborted"
+      ],
+      "title": "RunStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "engine": {
+      "title": "Engine",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "inputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Inputtokens"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "outputTokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outputtokens"
+    },
+    "promptVersion": {
+      "title": "Promptversion",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/RunStatus"
+    },
+    "task": {
+      "title": "Task",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task",
+    "engine",
+    "model",
+    "promptVersion",
+    "status"
+  ],
+  "title": "Run",
+  "type": "object"
+}
