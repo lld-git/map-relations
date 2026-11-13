@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExtractRelationsOutput",
+  "description": "Saída validada da tarefa extract_relations (v001)",
+  "type": "object",
+  "properties": {
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "subject":    { "type": "string" },
+          "type":       { "type": "string" },
+          "object":     { "type": "string" },
+          "class":      { "type": "string", "enum": ["afirmada", "inferida", "coocorrencia"] },
+          "evidence":   { "type": "string", "minLength": 1 },
+          "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+        },
+        "required": ["subject", "type", "object", "class", "evidence", "confidence"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["relations"],
+  "additionalProperties": false
+}
