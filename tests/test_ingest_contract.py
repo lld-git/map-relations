@@ -2,11 +2,11 @@
 
 import pytest
 
-from research.map_relations.core.ingest_contract import ParagraphKind, RemovalReason
-from research.map_relations.core.protocols import DocumentParser
-from research.map_relations.ingest.canonical import build_ingest_result
-from research.map_relations.ingest.pdf_loader import PdfParser
-from research.map_relations.ingest.report import render_report, write_processed
+from map_relations.core.ingest_contract import ParagraphKind, RemovalReason
+from map_relations.core.protocols import DocumentParser
+from map_relations.ingest.canonical import build_ingest_result
+from map_relations.ingest.pdf_loader import PdfParser
+from map_relations.ingest.report import render_report, write_processed
 
 HEADER = "O Processo — Franz Kafka"
 

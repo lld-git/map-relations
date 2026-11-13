@@ -10,16 +10,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --target dev -t map-relations-dev .
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          tags: map-relations-dev
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - run: docker run --rm map-relations-dev uv run ruff check .
       - run: docker run --rm map-relations-dev uv run mypy research tests scripts
       - run: docker run --rm map-relations-dev uv run python -m scripts.generate_schemas --check
       - run: docker run --rm map-relations-dev uv run pytest
 
-  # Garante que a imagem de execução (sem ferramentas de dev) continua construível.
+  # Garante que a imagem de execução (sem ferramentas de dev) continua construível
+  # e que a CLI funciona com o pacote instalado em site-packages (não editável).
   build-prod:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --target prod -t map-relations-prod .
-      - run: docker run --rm map-relations-prod python -c "import research.map_relations.core.models"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: prod
+          tags: map-relations-prod
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: docker run --rm map-relations-prod python -c "import map_relations.core.models"
+      - run: docker run --rm map-relations-prod python -m map_relations ingest --help

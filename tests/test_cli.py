@@ -1,6 +1,6 @@
 """CLI: caminhos de erro saem com código diferente de zero."""
 
-from research.map_relations.__main__ import main
+from map_relations.__main__ import main
 
 
 def test_ingest_missing_file_returns_nonzero():

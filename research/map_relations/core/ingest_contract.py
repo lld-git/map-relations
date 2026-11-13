@@ -9,8 +9,8 @@ import enum
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from research.map_relations.core.ids import new_id
-from research.map_relations.core.models import Source
+from map_relations.core.ids import new_id
+from map_relations.core.models import Source
 
 
 class _Base(BaseModel):

@@ -1,4 +1,4 @@
-from research.map_relations.ingest.document import Source, compute_text_hash
+from map_relations.ingest.document import Source, compute_text_hash
 
 
 def test_source_generates_id():

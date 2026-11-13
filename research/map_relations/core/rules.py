@@ -1,6 +1,6 @@
 """Regras de domínio que cruzam mais de um modelo."""
 
-from research.map_relations.core.models import (
+from map_relations.core.models import (
     Actor,
     ChangeAction,
     ChangeLog,
@@ -11,7 +11,7 @@ from research.map_relations.core.models import (
     RelationType,
     TargetType,
 )
-from research.map_relations.core.states import validate_transition
+from map_relations.core.states import validate_transition
 
 
 class IncompatibleKinds(ValueError):

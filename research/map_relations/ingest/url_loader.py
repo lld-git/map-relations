@@ -5,7 +5,7 @@ Mudanças: retorna (Source, str); calcula content_hash do texto extraído normal
 
 import trafilatura
 
-from research.map_relations.core.ids import nfc
+from map_relations.core.ids import nfc
 
 from .document import Source, compute_text_hash
 

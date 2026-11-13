@@ -8,8 +8,8 @@ Três categorias:
 Mantida à mão; revisar ao rodar make map. Não é código executável do projeto.
 """
 
-from research.map_relations.core import ingest_contract, models, protocols
-from research.map_relations.core.states import InvalidTransition
+from map_relations.core import ingest_contract, models, protocols
+from map_relations.core.states import InvalidTransition
 
 # ── campos Pydantic (serializados via model_dump / JSON Schema) ───────────────
 

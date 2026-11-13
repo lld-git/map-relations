@@ -24,8 +24,17 @@ dev = [
     "vulture>=2.11",
 ]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# o pacote vive em research/ mas instala como map_relations (ADR 007)
+packages = ["research/map_relations"]
+
+[tool.hatch.metadata]
+# o modelo spaCy é dependência por URL (ver B00b)
+allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -40,6 +49,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["map_relations", "scripts"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -9,8 +9,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-from research.map_relations.core.ids import nfc
-from research.map_relations.core.ingest_contract import (
+from map_relations.core.ids import nfc
+from map_relations.core.ingest_contract import (
     ChapterSpan,
     IngestResult,
     Paragraph,
@@ -19,7 +19,7 @@ from research.map_relations.core.ingest_contract import (
     RemovalReason,
     RemovedItem,
 )
-from research.map_relations.core.models import Source
+from map_relations.core.models import Source
 
 from .document import compute_text_hash
 

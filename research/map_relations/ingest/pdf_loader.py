@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from research.map_relations.core.ingest_contract import IngestResult
+from map_relations.core.ingest_contract import IngestResult
 
 from .canonical import build_ingest_result
 

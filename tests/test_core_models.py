@@ -3,14 +3,14 @@
 import pytest
 from pydantic import ValidationError
 
-from research.map_relations.core.ids import (
+from map_relations.core.ids import (
     claim_key,
     evidence_key,
     new_id,
     nfc,
     participation_key,
 )
-from research.map_relations.core.models import (
+from map_relations.core.models import (
     Alias,
     Claim,
     ClaimClass,

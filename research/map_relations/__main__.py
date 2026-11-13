@@ -1,19 +1,21 @@
 """CLI do map_relations.
 
-Uso (no contêiner, com PYTHONPATH=/app/research já definido na imagem):
+Uso (no contêiner):
     python -m map_relations ingest <pdf>
 
 O PDF deve estar em data/raw/. A saída vai para data/processed/<hash>/.
+data/ é resolvido a partir do diretório de trabalho (/app no contêiner),
+não do pacote — na imagem prod o pacote vive em site-packages (ADR 007).
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-from research.map_relations.ingest.pdf_loader import load_pdf
-from research.map_relations.ingest.report import write_processed
+from map_relations.ingest.pdf_loader import load_pdf
+from map_relations.ingest.report import write_processed
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path.cwd()
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 

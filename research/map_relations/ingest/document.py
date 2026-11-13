@@ -1,7 +1,7 @@
 import hashlib
 
-from research.map_relations.core.ids import nfc
-from research.map_relations.core.models import Source
+from map_relations.core.ids import nfc
+from map_relations.core.models import Source
 
 __all__ = ["Source", "compute_text_hash"]
 

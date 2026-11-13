@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from research.map_relations.core import models
+from map_relations.core import models
 
 ROOT = Path(__file__).parent.parent
 SCHEMAS_DIR = ROOT / "contracts" / "schemas"

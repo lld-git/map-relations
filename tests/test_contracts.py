@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from research.map_relations.core.protocols import (
+from map_relations.core.protocols import (
     LlmCapabilities,
     LlmEngine,
     LlmRequest,

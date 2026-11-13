@@ -13,7 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from research.map_relations.core.ingest_contract import IngestResult
+from map_relations.core.ingest_contract import IngestResult
 
 
 class _Base(BaseModel):

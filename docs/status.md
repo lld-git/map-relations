@@ -22,6 +22,9 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   multi-stage, Makefile, README, architecture.md, mapa do projeto
   (imports.svg, codigo_morto.txt, fluxo.md, arquivos.md), phases.md.
   Relatório: [docs/blocks/B04-docs.md](blocks/B04-docs.md).
+- **B04-pkg** — map_relations instalável (hatchling): imports `map_relations.*`,
+  sem PYTHONPATH; editável na dev, não editável na prod; CI com cache GHA.
+  Relatório: [docs/blocks/B04-pkg.md](blocks/B04-pkg.md). ADR 007.
 
 ## Em andamento
 
@@ -45,11 +48,12 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 004 — offsets em code points sobre texto NFC.
 - ADR 005 — só LlmEngine.complete é async; tarefas com gather + semáforo.
 - ADR 006 — tabela de transições de estado; ChangeLog em toda mudança.
+- ADR 007 — map_relations como pacote instalável (hatchling); sem PYTHONPATH.
 
 ## Handoff
 
-**Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/B04.md e
-docs/blocks/B04-docs.md. Aprovado, iniciar o **B02**: criar
+**Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/B04.md,
+docs/blocks/B04-docs.md e docs/blocks/B04-pkg.md. Aprovado, iniciar o **B02**: criar
 `eval/gold/processo.json` (exemplos marcados como fictícios, offsets sobre o
 texto canônico do IngestResult) e o comando
 `eval --run <arquivo> --gold <arquivo>` com precisão, recall e F1 por tipo,

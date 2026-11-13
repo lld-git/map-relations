@@ -20,6 +20,11 @@ Pastas previstas na estrutura e ainda vazias (planejado): `engines/`, `tasks/`,
 `segment/`, `pipeline/`, `verify/`, `resolve/`, `analysis/`, `compose/` e o
 painel (B02b). `nlp/` tem NER usado só em testes até o B05.
 
+O código vive em `research/map_relations/` mas instala como pacote
+`map_relations` (hatchling; editável na imagem dev, não editável na prod) —
+imports são sempre `map_relations.*`, sem PYTHONPATH
+([ADR 007](adr/007-pacote-instalavel.md)).
+
 ## Contratos
 
 ### Modelo de domínio (`core/models.py`)
@@ -126,3 +131,4 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [004](adr/004-offsets-nfc.md) | Offsets em code points sobre texto NFC |
 | [005](adr/005-llm-assincrono.md) | Só LlmEngine.complete é async; tarefas com gather + semáforo |
 | [006](adr/006-transicoes-de-estado.md) | Tabela de transições de estado; ChangeLog em toda mudança |
+| [007](adr/007-pacote-instalavel.md) | map_relations instalável via hatchling; sem PYTHONPATH |

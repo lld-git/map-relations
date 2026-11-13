@@ -2,8 +2,8 @@
 
 import pytest
 
-from research.map_relations.core.models import Actor, ClaimState
-from research.map_relations.core.states import (
+from map_relations.core.models import Actor, ClaimState
+from map_relations.core.states import (
     InvalidTransition,
     can_transition,
     is_terminal,

@@ -1,6 +1,6 @@
 import pytest
 
-from research.map_relations.nlp.ner import (
+from map_relations.nlp.ner import (
     Mention,
     _contains_whole,
     _merge_partial_names,
@@ -49,7 +49,7 @@ def test_unique_names_deduplicates():
 
 @pytest.mark.requires_spacy_model
 def test_extract_mentions_returns_positions():
-    from research.map_relations.nlp.ner import extract_mentions
+    from map_relations.nlp.ner import extract_mentions
 
     text = "Josef K. foi preso pela manhã. O inspetor acompanhou o processo."
     mentions = extract_mentions(text)

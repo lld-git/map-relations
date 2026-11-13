@@ -2,8 +2,8 @@
 
 import pytest
 
-from research.map_relations.core.ids import claim_key, participation_key
-from research.map_relations.core.models import (
+from map_relations.core.ids import claim_key, participation_key
+from map_relations.core.models import (
     Actor,
     ChangeAction,
     Claim,
@@ -16,12 +16,12 @@ from research.map_relations.core.models import (
     Role,
     TargetType,
 )
-from research.map_relations.core.rules import (
+from map_relations.core.rules import (
     IncompatibleKinds,
     transition,
     validate_claim_kinds,
 )
-from research.map_relations.core.states import InvalidTransition
+from map_relations.core.states import InvalidTransition
 
 
 def _entity(kind: EntityKind, name: str = "X") -> Entity:

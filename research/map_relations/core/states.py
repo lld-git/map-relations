@@ -6,7 +6,7 @@ corrigindo a si mesmo. Estados humanos nunca são alterados por auto
 (Princípio 5 do CLAUDE.md).
 """
 
-from research.map_relations.core.models import Actor, ClaimState
+from map_relations.core.models import Actor, ClaimState
 
 _AUTO_STATES = frozenset(
     {ClaimState.proposta, ClaimState.verificada, ClaimState.rejeitada}

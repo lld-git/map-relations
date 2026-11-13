@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
-from research.map_relations.core.ingest_contract import IngestResult, ParagraphKind
+from map_relations.core.ingest_contract import IngestResult, ParagraphKind
 
 _FIRST_LINE_CHARS = 120
 
