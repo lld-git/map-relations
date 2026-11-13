@@ -8,3 +8,11 @@ dist/
 .env
 eval/runs/*
 !eval/runs/.gitkeep
+eval/runs/*/raw/
+eval/runs/*/claims.jsonl
+eval/runs/*/mentions.jsonl
+eval/reports/junit.xml
+data/raw/
+data/processed/
+docs/old/*.pdf
+docs/*.pdf

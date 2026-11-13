@@ -1,0 +1,32 @@
+services:
+  app:
+    build: .
+    volumes:
+      - ./research:/app/research
+      - ./tests:/app/tests
+      - ./contracts:/app/contracts
+      - ./eval:/app/eval
+      - ./data:/app/data
+    env_file:
+      - path: .env
+        required: false
+
+  painel:
+    build: .
+    command: uv run uvicorn research.map_relations.painel.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./research:/app/research
+      - ./eval:/app/eval
+      - ./data:/app/data
+    env_file:
+      - path: .env
+        required: false
+
+  docling:
+    # Placeholder — DoclingParser para conversão de PDF (implementar em B04b)
+    image: busybox
+    command: ["echo", "docling service: implementar em B04b"]
+    profiles:
+      - docling

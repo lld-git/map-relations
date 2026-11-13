@@ -16,3 +16,21 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy research tests
       - run: uv run pytest -m "not requires_spacy_model"
+
+  test-spacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - run: uv sync
+      - run: uv run python -m spacy download pt_core_news_sm
+      - run: uv run pytest -m requires_spacy_model -v
+
+  test-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t map-relations-test .
+      - run: docker run --rm map-relations-test uv run pytest

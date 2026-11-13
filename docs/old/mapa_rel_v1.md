@@ -1,0 +1,695 @@
+# Mapa de Relações: projeto da versão 1
+
+Nov 3, 2026 · @leon
+
+A versão 1 é uma aplicação web que roda quase toda no navegador e transforma documentos em um dossiê navegável, com relações, provas, linha do tempo e notas. O servidor cuida só de conta, licença e assinatura da exportação; o motor de IA é do usuário ou roda na máquina dele. Isso mantém o custo fixo perto de zero enquanto a demanda é testada.
+
+## Produto e decisões
+
+**Promessa:** enviar uma obra ou um conjunto de documentos e receber um mapa que mostra o que a leitura linear não evidencia, com cada afirmação ligada ao trecho original.
+
+| Tema | Decisão da V1 | Motivo |
+| --- | --- | --- |
+| Público inicial | Comentaristas e criadores que precisam citar fontes | É o grupo mais provável de pagar; geek e religioso servem para demonstração |
+| Demonstração | *O Alienista*, em domínio público | Curto, em português e sem risco de direitos autorais |
+| Processamento | No navegador, em Web Workers | Sem custo de servidor por página processada |
+| Motor de IA | OpenRouter por PKCE, chave do próprio usuário e modelo local | Você não paga por uso nem guarda credenciais |
+| Dados | Armazenamento local; no servidor, só nome do projeto e contagens | Reduz custo, vazamento e exposição à LGPD |
+| Entrada | Arquivo local e seleção no Google Drive | Links e sites com login ficam fora da V1 |
+| Plano gratuito | Dossiê completo durante a sessão | A pessoa precisa sentir o valor antes de pagar |
+| Plano pago | Guardar, exportar, importar e conectar projetos | Paga para não perder o conhecimento acumulado |
+
+## Hipóteses a validar
+
+1. O dossiê entrega achados verdadeiros e novos para quem já conhece o assunto.
+2. O método supera um bom prompt em obras longas e em múltiplas fontes.
+3. Modelos gratuitos ou locais entregam qualidade suficiente para o plano gratuito.
+4. O usuário aceita conectar um motor de IA para obter o resultado.
+5. Parte dos usuários paga para guardar e continuar o projeto.
+
+## Fora da V1
+
+- Coleta em sites com assinatura, armazenamento de senhas e automação de interfaces de chat.
+- Docling e OCR de PDF escaneado, que exigem etapa fora da página estática.
+- Colaboração em equipe, acervo próprio de notícias e motor pago por você.
+- Edição completa em celular; nele, a V1 oferece leitura dos achados e das fichas.
+
+## Camada 1: arquitetura e blocos
+
+A regra central é que o domínio não conhece fornecedor, biblioteca de grafo nem banco. Cada dependência externa fica atrás de um contrato pequeno, então trocar OpenRouter por modelo próprio, ou SQLite local por servidor, não altera o restante.
+
+&#91;embedded content: arquitetura da V1 · contratos entre o pipeline e cada dependência externa\]
+
+O pipeline fala só com os quatro contratos. O texto do usuário sai do navegador apenas para o motor de IA que ele escolheu.
+
+### Blocos do sistema
+
+| Bloco | Responsabilidade | Tecnologia da V1 | Como trocar depois |
+| --- | --- | --- | --- |
+| `core` | Tipos, regras, IDs, schema e eventos | TypeScript puro, Zod | Permanece |
+| `ingest` | Lê arquivos e extrai texto com posição | File API, PDF.js e leitor de EPUB | Novo `DocumentParser`, inclusive Docling em servidor |
+| `sources` | Entrega arquivos ao pipeline | Upload local; [Google Picker com `drive.file`](https://developers.google.com/picker/docs/) | Novo `SourceConnector`: links ou extensão |
+| `segment` | Cria blocos com posição e sobreposição | Código próprio | Nova estratégia sem mudar o restante |
+| `engines` | Executa tarefas de IA | OpenAI compatível, OpenRouter e WebLLM | Novo `LlmEngine`, inclusive API própria |
+| `tasks` | Prompts versionados e saídas validadas | Modelos de prompt e Zod | Nova versão por tarefa |
+| `pipeline` | Orquestra, retoma e registra custo | Máquina de estados em Worker | Execução em fila no servidor |
+| `verify` | Confere provas e sustentação | Comparação de texto e tarefa de verificação | Modelo NLI ou motor mais forte |
+| `resolve` | Une nomes e aponta ambiguidades | Regras e tarefa de desempate | Modelo próprio de entidades |
+| `analysis` | Calcula pontes, grupos e mudanças no tempo | [Graphology](https://ithelp.ithome.com.tw/articles/10387358) em Worker | Banco de grafo no servidor |
+| `store` | Guarda projeto, checkpoint e notas | [SQLite WASM com OPFS em Worker](https://blog.openreplay.com/sqlite-browser-opfs/) | Novo `ProjectStore`: Postgres ou Neo4j |
+| `compose` | Monta achados, fichas e ganchos | Código e tarefa de narração | Novos modelos de texto |
+| `graph-view` | Desenha o mapa | [Cytoscape.js](https://ithelp.ithome.com.tw/articles/10387358) | Sigma.js, se passar de alguns milhares de nós |
+| `ui` | Telas e estado compartilhado | React, Vite e Zustand | Telas substituídas uma a uma |
+| `exporter` | Gera `.html` e `.grafo` | Viewer único e SQLite compactado | Novos formatos |
+| `account-api` | Conta, licença e assinatura | [Cloudflare Workers e D1](https://freetier.co/cloudflare-free-tier) | Outro serviço com a mesma API |
+| `eval` | Compara prompt e ferramenta | Scripts Node e gabaritos JSON | Permanece e cresce |
+
+Escolhi Cytoscape.js porque a V1 deve ter centenas de nós, e essa é a faixa em que suas [opções de layout e estilo](https://ithelp.ithome.com.tw/articles/10387358) ajudam mais. A análise fica no Graphology, em separado, para o renderizador poder mudar sem refazer os cálculos.
+
+### Contratos que protegem a troca
+
+```ts
+interface LlmEngine {
+  id: string;
+  capabilities: {
+    jsonSchema: boolean;
+    maxContextTokens: number;
+    runsLocally: boolean;
+    dataPolicyNote: string;
+  };
+  complete(req: LlmRequest, signal: AbortSignal): Promise<LlmResponse>;
+}
+
+interface SourceConnector {
+  id: string;
+  pick(): Promise<SourceRef[]>;
+  fetch(ref: SourceRef): Promise<Blob>;
+}
+
+interface DocumentParser {
+  accepts(file: FileMeta): boolean;
+  parse(file: Blob): Promise<ParsedDocument>;
+}
+
+interface ProjectStore {
+  open(projectId: string): Promise<ProjectTx>;
+  checkpoint(run: RunState): Promise<void>;
+  exportDatabase(): Promise<Uint8Array>;
+  importDatabase(data: Uint8Array): Promise<void>;
+  destroy(projectId: string): Promise<void>;
+}
+
+interface GraphView {
+  render(model: GraphViewModel): void;
+  applyState(state: ViewState): void;
+  on(event: GraphEvent, handler: GraphHandler): void;
+}
+```
+
+O contrato AccountApi, de licença e assinatura, entra em B17. Cada resposta de IA é validada na borda. Um motor que devolve JSON inválido gera nova tentativa ou falha registrada, nunca dado corrompido no grafo.
+
+### Modelo de dados
+
+| Tabela | Campos principais | Por que importa |
+| --- | --- | --- |
+| `source` | título, tipo, data, hash, licença declarada | Permite filtrar e citar a origem |
+| `segment` | fonte, capítulo, posição inicial e final, texto temporário | Liga cada prova ao original |
+| `entity` | nome preferido, tipo, descrição curta | É o nó do grafo |
+| `alias` | entidade, nome, origem, confiança | Une apelidos e permite desfazer |
+| `relation_type` | rótulo, definição, versão | Mantém a lista fechada aprovada pelo usuário |
+| `claim` | sujeito, tipo, objeto, classe, estado, confiança | É a relação extraída |
+| `evidence` | claim, fonte, posição, trecho curto | Sustenta a relação |
+| `time_scope` | data da história, data da publicação, capítulo | Separa as duas linhas do tempo |
+| `finding` | tipo, cálculo, claims de apoio, texto | Compõe a primeira tela |
+| `note` | alvo, conteúdo, tipo | Forma a camada do usuário |
+| `run` | etapa, modelo, prompt, tokens, erros | Permite reproduzir e medir |
+| `event` | ação, alvo, antes, depois | Desfazer e preservar correções |
+
+A `classe` da relação tem três valores: `afirmada`, `inferida` e `coocorrencia`. O `estado` tem cinco: `proposta`, `verificada`, `rejeitada`, `confirmada_humano` e `rejeitada_humano`. Uma decisão humana nunca é sobrescrita por um novo processamento.
+
+### Fluxo do pipeline
+
+1. **Ingerir:** lê os arquivos, calcula o hash e guarda texto com posições.
+2. **Segmentar:** divide em blocos de 5 a 15 parágrafos, respeita capítulos e repete 1 ou 2 parágrafos.
+3. **Sugerir relações:** usa o objetivo do usuário e uma amostra do material, e espera a aprovação.
+4. **Extrair:** identifica pessoas, apelidos e relações por bloco, em JSON validado.
+5. **Conferir provas:** rejeita o que não localiza no original; este passo é só código.
+6. **Verificar sustentação:** uma segunda tarefa avalia se o trecho sustenta a relação.
+7. **Resolver identidade:** une nomes por regras e pede revisão nos casos ambíguos.
+8. **Analisar:** calcula grupos, pontes, mudanças no tempo, conflitos e relações raras.
+9. **Compor:** gera achados, fichas e ganchos usando só fatos confirmados.
+
+Cada etapa grava checkpoint. A chave de cada bloco combina hash do texto, versão do prompt e modelo, então uma nova execução só refaz o necessário. Se a cota acabar, o projeto pausa e retoma depois.
+
+### Formato de exportação
+
+| Arquivo | Conteúdo | Uso |
+| --- | --- | --- |
+| `projeto.html` | Viewer completo, dados embutidos e notas | Abre offline; permite filtrar, editar notas e salvar nova cópia |
+| `projeto.grafo` | SQLite compactado e `manifest.json` | Reimportação no site para continuar o trabalho |
+| Manifesto | Versão do schema, app, modelos, contagens, hash e assinatura | Migração e validação da importação |
+
+A exportação guarda trechos curtos, não o texto completo. Para extrair mais depois, o usuário reenvia o documento, e o hash o vincula à fonte já registrada. A assinatura é feita no Worker e comprova a origem do arquivo, mas não impede cópia: é controle de produto, não DRM.
+
+### Passo a passo para montar
+
+1. Crie o monorepo com `apps/web`, `apps/account-api`, `packages/*` e `eval`.
+2. Implemente `core` e o schema, com testes, antes de qualquer tela.
+3. Faça a linha de comando do `eval` com um motor OpenAI compatível.
+4. Coloque ingestão, segmentação, extração e conferência rodando em Node.
+5. Mova o mesmo pipeline para Workers no navegador, trocando só os adaptadores.
+6. Adicione `store` com SQLite, `analysis` e `compose`.
+7. Construa o dossiê sobre um arquivo de dados fixo de *O Alienista*.
+8. Conecte a interface ao pipeline real.
+9. Adicione conta, licença, exportação e pagamento por último.
+
+### Custo da V1
+
+| Item | Custo mensal esperado | Observação |
+| --- | --- | --- |
+| Site estático | US$ 0 | [Requisições estáticas gratuitas](https://developers.cloudflare.com/workers/platform/pricing/index.md) |
+| Worker e banco | US$ 0 | [100 mil requisições/dia](https://temps.sh/blog/cloudflare-pages-free-tier-limits-2026) e [5 GB no D1](https://freetier.co/cloudflare-free-tier) |
+| Se exceder | US$ 5 | [Plano pago do Workers](https://temps.sh/blog/cloudflare-pages-free-tier-limits-2026) |
+| Motor de IA em produção | US$ 0 para você | Pago pelo usuário ou rodando na máquina dele |
+| Domínio e e-mail | A confirmar | Baixo; varia por fornecedor |
+
+O limite gratuito é um [bloqueio, não cobrança extra](https://freetier.co/cloudflare-free-tier), então a API deve falhar de forma clara sem afetar o trabalho local.
+
+## Camada 2: experiência do usuário
+
+O dossiê começa pelos achados, não pelo grafo. As fontes consultadas convergem em mostrar primeiro o que importa, deixar o detalhe sob demanda e manter todas as visões coordenadas, porque um grafo completo costuma virar um emaranhado.
+
+### O que a pesquisa indica
+
+| Padrão | Evidência | Aplicação |
+| --- | --- | --- |
+| Foco no trabalho, não no modelo de dados | [Emaranhados podem existir nos dados, mas não na interface](https://cambridge-intelligence.com/how-to-fix-hairballs/) | Abrir com achados e um mapa reduzido |
+| Visão geral primeiro, detalhe sob demanda | [Agrupamento visual do SemSpect](https://ceur-ws.org/Vol-3526/paper-07.pdf) | Grupos no mapa; ficha ao clicar |
+| Filtros e análise de rede | [Usuários buscam as entidades e conexões importantes](https://cambridge-intelligence.com/getting-the-perfect-look-and-feel-for-your-network-visualizations/) | Lentes prontas, não só filtros manuais |
+| Linha do tempo integrada | [Barra de tempo com histograma, integrada ao grafo](https://cambridge-intelligence.com/methods-visualizing-dynamic-networks/) | Barra inferior com seleção e reprodução |
+| Evitar comparar quadros separados | [Pequenos múltiplos viram jogo de sete erros](https://cambridge-intelligence.com/methods-visualizing-dynamic-networks/) | Mesmo mapa, sem telas paralelas |
+| Modo acumulado por capítulo | [Story Ribbons](https://arxiv.org/pdf/2508.06772) | Alternar entre "até aqui" e "só este trecho" |
+| Texto sincronizado com a visualização | [Story Ribbons](https://arxiv.org/pdf/2508.06772) | Leitor que acompanha a seleção |
+| Foco temporário e aviso de itens ocultos | [Foco](https://docs.kumu.io/guides/focus) e [ajuda do Kumu](https://docs.kumu.io/frequently-asked-questions/my-map-disappeared-how-do-i-bring-it-back) | Faixa de estado e tecla Esc |
+| Perfil no painel lateral | [Editor de mapas do Kumu](https://docs.kumu.io/overview/user-interfaces/map-editor) | Ficha sem sair do mapa |
+| Várias perspectivas do mesmo dado | [Visões do Kumu](https://docs.kumu.io/guides/views) | Lentes salvas, sem duplicar dados |
+| Correção dentro da análise | [Análise visual de redes de personagens](https://www.creta.uni-stuttgart.de/en/blog/2019/01/21/new-article-on-visualizing-character-networks/) | Corrigir no próprio contexto |
+
+### Jornada do usuário
+
+1. **Início:** explica a proposta e abre um dossiê de demonstração sem cadastro.
+2. **Novo projeto:** nome, objetivo e material.
+3. **Motor:** recomenda uma opção e informa para onde o texto será enviado.
+4. **Relações:** mostra uma lista sugerida a partir da amostra, editável.
+5. **Processamento:** mostra progresso, primeiros nomes e opção de pausar.
+6. **Dossiê:** abre em Achados.
+7. **Saída:** copiar um gancho, gerar imagem ou exportar o projeto.
+
+### Disposição da tela principal
+
+- **Barra superior:** nome, busca global, seletor de visão, estado do processamento, Exportar.
+- **Coluna esquerda, 280 px, recolhível:** lentes, filtros e contagens.
+- **Área central:** a visão ativa.
+- **Painel direito, 380 px, redimensionável:** ficha, relação ou prova selecionada, com abas Detalhes, Trechos e Notas.
+- **Barra inferior, 112 px:** linha do tempo, sempre visível nas visões Mapa e Relações.
+
+&#91;embedded content: tela principal · wireframe da visão Mapa\]
+
+Selecionar uma pessoa, uma lente ou um período atualiza mapa, ficha e linha do tempo ao mesmo tempo.
+
+### Visões
+
+| Visão | Pergunta respondida | Elementos e interação |
+| --- | --- | --- |
+| Achados | O que eu não tinha notado? | 5 cards, com tipo, frase, força da evidência e ações Ver no mapa, Abrir prova, Criar gancho |
+| Mapa | Como tudo se liga? | Grupos, foco, seleção múltipla, lentes e legenda |
+| Linha do tempo | Quando isso mudou? | Faixas por pessoa e eventos, ligadas ao mapa |
+| Pessoas | Quem é quem? | Grade de fichas, ordenável por relevância, pontes ou aparições |
+| Relações | Quais são os fatos? | Tabela filtrável, em lote, com estado e prova |
+| Caminho | Como A chega a B? | Dois seletores, caminhos curtos e narração passo a passo |
+| Leitor | Onde está escrito? | Texto ou trecho com destaques sincronizados |
+| Ganchos e notas | O que vou publicar? | Editor de tese, provas e contraponto, mais as notas |
+
+### Linha do tempo e movimento na história
+
+- **Eixo:** capítulo em obras; data em documentos com data. Os dois coexistem, mas um fica ativo por vez.
+- **Histograma:** mostra o volume de relações, empilhado por tipo.
+- **Seleção:** duas alças definem o intervalo; o clique no histograma salta para o ponto.
+- **Modos:** "Acumulado" mostra tudo até aquele ponto; "Janela" mostra só o trecho.
+- **Reprodução:** avançar, voltar, tocar e velocidade; setas do teclado avançam uma unidade.
+- **Estabilidade:** as posições dos nós ficam fixas durante a reprodução, para preservar o mapa mental. Isso é decisão de projeto, a validar nos testes.
+- **Marcadores:** achados e notas aparecem como pontos na barra.
+
+### Seleção de personagens e ângulos
+
+- **Clique:** seleciona, abre a ficha e destaca as relações diretas.
+- **Duplo clique ou F:** entra em foco, escondendo o restante.
+- **Shift + clique:** acrescenta nomes à seleção.
+- **Dois selecionados:** oferece Comparar e Ver caminho.
+- **Esc:** sai do foco. Uma faixa sempre indica itens ocultos, com Limpar.
+- **Busca:** encontra pessoa, apelido, relação ou trecho e sugere o nome correto.
+
+| Lente | O que mostra | Cálculo |
+| --- | --- | --- |
+| Visão geral | Grupos e pessoas principais | Comunidades e relevância |
+| Pontes | Quem liga grupos | Intermediação |
+| Conflitos | Relações adversas e contradições | Tipo e fontes divergentes |
+| Evolução | O que surgiu ou mudou no período | Comparação entre intervalos |
+| Pouco citados, decisivos | Baixa frequência com alta intermediação | Frequência contra posição |
+| Por fonte | Quem afirma o quê | Agrupamento por fonte |
+| Só minhas notas | O que o usuário marcou | Camada pessoal |
+
+### Filtros, tabelas e rolagem
+
+- **Filtros:** tipo de relação, classe, estado, fonte, período, grupo, pessoa e quantidade de provas.
+- **Contagens:** cada opção mostra o total disponível; opções vazias ficam desativadas.
+- **Chips:** filtros ativos aparecem no topo, com remoção individual.
+- **Paginação:** Relações usa 50 linhas por página e cabeçalho fixo; Pessoas e Trechos usam rolagem virtual.
+- **Painel direito:** rola sozinho, sem mover o mapa.
+- **URL:** guarda visão, filtros, foco e período, para voltar exatamente ao mesmo estado.
+- **Desfazer:** mantém histórico de navegação e de edições.
+
+### Atualização durante o processamento
+
+- **Dados chegam por bloco:** contadores sobem em tempo real, sem esperar o fim.
+- **O mapa não salta:** novos itens entram como "12 novos", e o usuário escolhe quando incorporar.
+- **Estado por item:** proposta, verificada ou rejeitada aparecem sem recarregar.
+- **Pausa e retomada:** cota esgotada vira um aviso com horário sugerido, e o trabalho fica salvo localmente.
+- **Placar:** a qualidade fica no fim e num botão fixo, sem competir com os achados.
+
+### Notas e ganchos
+
+- **Onde anotar:** pessoa, relação, trecho, achado ou um período.
+- **Como:** selecione o texto no Leitor ou clique em Anotar no painel.
+- **Separação visual:** nota do usuário nunca se parece com um fato extraído.
+- **Tipos:** interpretação, pergunta, a verificar e pauta.
+- **Gancho:** o usuário escolhe achados e o sistema monta tese, provas e contraponto; a tese fica editável.
+- **Formatos:** comentário curto, roteiro de vídeo, thread e imagem do mapa recortado.
+- **Citação:** copiar sempre leva fonte, posição e link.
+
+### Linguagem visual e acessibilidade
+
+- **Cor:** por categoria de relação, nunca como único sinal.
+- **Linha:** contínua para afirmada, tracejada para inferida, pontilhada para coocorrência.
+- **Tamanho do nó:** relevância na lente ativa, explicada na legenda.
+- **Tipografia e densidade:** visual de publicação, com muito respiro; [desordem é um dos principais problemas](https://cambridge-intelligence.com/getting-the-perfect-look-and-feel-for-your-network-visualizations/).
+- **Alternativa ao grafo:** a visão Relações oferece a mesma informação em tabela, com teclado completo.
+- **Celular:** Achados, Pessoas e Leitor em coluna única; o mapa só para consulta.
+
+### Estados que precisam de desenho
+
+| Estado | O que mostrar |
+| --- | --- |
+| Sem WebGPU | Motor por API, sem mencionar erro técnico |
+| Modelo baixando | Tamanho, tempo estimado e opção de cancelar |
+| Cota encerrada | Horário de retomada e outras opções de motor |
+| Sem relações encontradas | Sugestão de ajustar a lista ou o material |
+| Nome ambíguo | Fila de revisão com trechos lado a lado |
+| Prova não localizada | Relação rejeitada, visível só no placar e no filtro |
+| Exportação no plano gratuito | Prévia do que será guardado e preço |
+
+## Camada 3: modelos
+
+Comece pela API gratuita da Mistral para desenvolver, use o Haiku 5.5 como referência e ofereça OpenRouter ao usuário; modelo no navegador entra como opção depois de medido. Ainda não há evidência de qual modelo vence no seu caso, então a escolha final sai do teste abaixo, e cada tarefa pode usar um motor diferente.
+
+### Candidatos
+
+| Papel | Modelo ou serviço | Acesso | Cuidado |
+| --- | --- | --- | --- |
+| Desenvolvimento | [Mistral, plano gratuito](https://openrouter.ai/blog/tutorials/free-llm-apis-compared/) | Chave de API; [JSON Schema nativo](https://www.developersdigest.tech/blog/structured-outputs-across-ai-apis-2026) | Exige aceitar uso para treino; use só domínio público |
+| Desenvolvimento, velocidade | [Groq, Llama 3.3 70B](https://openrouter.ai/blog/tutorials/free-llm-apis-compared/) | Chave de API | Limites por minuto e por dia |
+| Referência de qualidade e custo | [Claude Haiku 5.5](https://apidog.com/blog/claude-haiku-5-5-pricing/) | API paga, cerca de US$ 0,05 por livro | Não é aberto |
+| Usuário sem custo inicial | [OpenRouter, modelos `:free`](https://benchlm.ai/md/free-tier.md), via [PKCE](https://openrouter.ai/docs/guides/overview/auth/oauth) | Login do próprio usuário | 50 requisições/dia até comprar US$ 10; modelos variam |
+| Usuário com chave própria | Mistral, OpenAI, Claude e outros compatíveis | Chave guardada só no navegador | Conferir CORS de cada um |
+| Local no navegador | [Qwen3.5 e Llama 3.2 no WebLLM](https://pinggy.io/blog/run_llm_in_browser_webgpu/) | WebGPU | Sem dado em português; [1 a 3 bilhões é a faixa confiável](https://tianpan.co/blog/2026-04-17-browser-native-llm-inference-webgpu) |
+| Local em português | [Tucano2-qwen-3.7B-Instruct](https://featherless.ai/models/Polygl0t/Tucano2-qwen-3.7B-Instruct) | Teste offline primeiro | Sem build confirmado para WebLLM |
+| Referência aberta em português | [Gemma 3 27B](https://aclanthology.org/2026.lrec-1.609.pdf) | API ou máquina maior | Melhor aberto em triplas no RelEx-PT, em frases da Wikipédia |
+
+No RelEx-PT, a extração sem ajuste foi [bem mais fraca em modelos pequenos](https://aclanthology.org/2026.lrec-1.609.pdf), embora os testados fossem de gerações antigas. Por isso, não prometa qualidade do modelo local antes do teste.
+
+### Cada tarefa tem seu contrato
+
+| Tarefa | Entrada | Saída validada | Exigência |
+| --- | --- | --- | --- |
+| `suggest_relations` | Objetivo e amostra | Tipos, definição e exemplo | Média |
+| `extract_entities` | Bloco e lista conhecida | Pessoas, apelidos e referências | Baixa a média |
+| `extract_relations` | Bloco, pessoas e tipos aprovados | Relação, classe, trecho, confiança | Alta |
+| `verify_claim` | Relação e trecho | Sustenta, não sustenta, incerto | Média |
+| `resolve_alias` | Dois nomes e seus trechos | Mesmo, diferente, incerto | Média |
+| `narrate_finding` | Cálculo e relações confirmadas | Frase com IDs citados | Média |
+
+### Saída de `extract_relations`
+
+```json
+{
+  "relations": [
+    {
+      "subject": "Simão Bacamarte",
+      "type": "conflito",
+      "object": "Porfírio",
+      "class": "afirmada",
+      "evidence": "trecho copiado literalmente do bloco",
+      "confidence": 0.82
+    }
+  ]
+}
+```
+
+O exemplo mostra só o formato. O código localiza `evidence` no bloco, e a falha rejeita a relação. A `confidence` do modelo serve para ordenar a revisão, não como prova de acerto.
+
+### Acoplamento
+
+```json
+{
+  "routes": {
+    "extract_relations": { "engine": "openrouter", "model": "definido-no-teste", "promptVersion": "rel-001" },
+    "verify_claim": { "engine": "openrouter", "model": "definido-no-teste", "promptVersion": "ver-001" },
+    "narrate_finding": { "engine": "openrouter", "model": "definido-no-teste", "promptVersion": "nar-001" }
+  }
+}
+```
+
+- **Adaptador:** só ele conhece URL, autenticação, formato e limite de cada serviço.
+- **Capacidades:** com JSON Schema nativo, o adaptador usa-o; sem ele, tenta JSON simples e valida.
+- **Limite:** o adaptador informa quanto texto cabe, e o pipeline ajusta o bloco.
+- **Falha:** erro temporário gera nova tentativa com espera; cota esgotada pausa; resposta inválida fica registrada.
+- **Reprodução:** cada resultado guarda modelo, prompt e parâmetros.
+- **Evolução:** adicionar um motor exige um adaptador e passar no mesmo teste, sem alterar o pipeline.
+
+### Teste de escolha
+
+**Material:** *O Alienista* e 100 matérias com gabarito próprio. Dados de terceiros só entram em motores sem uso para treino.
+
+**Medidas por tarefa:** precisão, recall, JSON válido, provas válidas, tokens, tempo e falhas.
+
+**Regra de escolha:** escolher o motor mais barato que fique a até 5 pontos de F1 do melhor em cada grupo: relações explícitas e implícitas. Essa margem é uma sugestão minha, a revisar depois do primeiro resultado.
+
+**Plano gratuito no navegador:** só aparece como recomendado se terminar um livro curto em tempo aceitável num notebook comum e tiver qualidade próxima da opção via API. Caso contrário, fica marcado como experimental.
+
+## Camada 4: requisitos e blocos de projeto
+
+A ordem prova o valor antes de construir o produto inteiro: primeiro a extração em linha de comando, depois o dossiê com dados fixos e, por último, conta e pagamento. Cada bloco termina em algo que pode ser testado sem depender dos seguintes.
+
+### Documentação no repositório
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `README.md` | Como rodar, testar e publicar |
+| `CLAUDE.md` | Contexto e regras para o Code |
+| `docs/00-produto.md` | Promessa, público, escopo e hipóteses |
+| `docs/01-arquitetura.md` | Blocos, dependências e decisões |
+| `docs/02-dados.md` | Schema, estados, migrações e exportação |
+| `docs/03-pipeline.md` | Etapas, checkpoint, retomada e falhas |
+| `docs/04-modelos.md` | Adaptadores, tarefas, rotas e resultados |
+| `docs/05-ux.md` | Telas, estados, atalhos e sistema visual |
+| `docs/06-seguranca-privacidade.md` | Fluxo de dados, chaves, CSP, LGPD e termos |
+| `docs/07-avaliacao.md` | Gabarito, métricas e execução do comparativo |
+| `docs/adr/` | Uma decisão de arquitetura por arquivo |
+
+### Requisitos funcionais
+
+| ID | Requisito | Prioridade |
+| --- | --- | --- |
+| RF01 | Abrir dossiê de demonstração sem cadastro | Essencial |
+| RF02 | Criar projeto com nome, objetivo e material | Essencial |
+| RF03 | Aceitar TXT, EPUB e PDF com texto | Essencial |
+| RF04 | Selecionar arquivos no Google Drive | Importante |
+| RF05 | Conectar motor por PKCE ou chave própria | Essencial |
+| RF06 | Informar destino e política de dados antes de enviar | Essencial |
+| RF07 | Sugerir relações a partir do objetivo e da amostra | Essencial |
+| RF08 | Editar e aprovar a lista de relações | Essencial |
+| RF09 | Processar com progresso, pausa e retomada | Essencial |
+| RF10 | Rejeitar relação sem prova no original | Essencial |
+| RF11 | Verificar sustentação e classificar a relação | Essencial |
+| RF12 | Unir apelidos e mostrar casos ambíguos | Essencial |
+| RF13 | Gerar até 5 achados, todos com prova | Essencial |
+| RF14 | Oferecer Mapa, Pessoas, Relações, Linha do tempo, Caminho e Leitor | Essencial |
+| RF15 | Sincronizar filtros, foco e período entre as visões | Essencial |
+| RF16 | Criar notas ligadas a qualquer item | Essencial |
+| RF17 | Criar ganchos com tese, provas e contraponto | Importante |
+| RF18 | Copiar citação com fonte e posição | Essencial |
+| RF19 | Corrigir relações e nomes, preservando a decisão | Essencial |
+| RF20 | Exibir placar de qualidade do projeto | Essencial |
+| RF21 | Criar conta e guardar só metadados | Essencial |
+| RF22 | Exportar `.html` e `.grafo` no plano pago | Essencial |
+| RF23 | Importar `.grafo` e continuar o projeto | Essencial |
+| RF24 | Rodar modelo no navegador como opção | Importante |
+| RF25 | Conectar dois projetos pela mesma entidade | Depois da V1 |
+
+### Requisitos não funcionais
+
+| ID | Requisito | Meta inicial |
+| --- | --- | --- |
+| RNF01 | Custo fixo com zero clientes | Próximo de US$ 0, mais domínio |
+| RNF02 | Conteúdo do usuário | Nunca enviado ao servidor do produto |
+| RNF03 | Credenciais | Nenhuma senha de terceiros; chave só no navegador |
+| RNF04 | Interface durante processamento | Trabalho pesado sempre em Worker |
+| RNF05 | Interação no mapa | Fluida com 500 nós e 2.000 arestas, a medir |
+| RNF06 | Reprodutibilidade | Modelo, prompt e parâmetros salvos por resultado |
+| RNF07 | Segurança do HTML | CSP e escape de todo texto vindo de documentos |
+| RNF08 | Injeção de prompt | Documento tratado como dado; saída sempre validada |
+| RNF09 | Armazenamento | Sem [fallback silencioso para memória](https://blog.openreplay.com/sqlite-browser-opfs/) |
+| RNF10 | Navegadores | Chromium, Firefox e Safari atuais; WebGPU tratado como opcional |
+| RNF11 | Acessibilidade | Teclado, contraste e alternativa em tabela |
+| RNF12 | Telemetria | Só eventos e contagens, nunca conteúdo |
+
+### Blocos em ordem de execução
+
+| Bloco | Entrega | Depende de | Pronto quando |
+| --- | --- | --- | --- |
+| B00 | Monorepo, CI, testes e lint | Nada | CI verde com um teste real |
+| B01 | `core`: tipos, Zod e regras de estado | B00 | Estados e IDs cobertos por testes |
+| B02 | Gabarito de *O Alienista* e `eval` | B01 | Comando calcula precisão, recall e provas válidas |
+| B03 | Adaptador OpenAI compatível e tarefas | B01 | Mistral e Haiku respondem no mesmo contrato |
+| B04 | Leitura de TXT e EPUB; segmentação | B01 | Posição de cada bloco volta ao texto exato |
+| B05 | Pipeline em Node, com conferência de prova | B03, B04 | Capítulo processado, retomado e sem prova inválida |
+| B06 | Comparativo A/B/C inicial | B02, B05 | Relatório fecha o checkpoint C1 |
+| B07 | Verificação e resolução de nomes | B05 | Melhoria medida em precisão e união de nomes |
+| B08 | Análise e achados | B07 | 5 achados gerados, todos ligados a provas |
+| B09 | Dossiê com dados fixos e teste de percepção | B08 | Resultado fecha o checkpoint C2 |
+| B10 | Achados, Pessoas e Leitor | B09 | Item abre sua prova em até 2 cliques |
+| B11 | Mapa, lentes e linha do tempo | B10 | Filtros e período sincronizados |
+| B12 | Relações, Caminho, Notas e Ganchos | B11 | Notas persistem e citação sai completa |
+| B13 | Pipeline em Workers e SQLite OPFS | B05, B12 | Livro retomado depois de fechar a aba |
+| B14 | Conexões: PKCE, chave, arquivo e Drive | B13 | Fluxo completo sem guardar segredo no servidor |
+| B15 | WebLLM experimental | B13 | Tempo e qualidade medidos em notebook comum |
+| B16 | Exportação e importação | B13 | Projeto exportado volta igual, e o HTML abre offline |
+| B17 | Conta, licença e assinatura | B16 | Exportação paga é assinada e validada |
+| B18 | Início, termos, telemetria e segurança | B14, B16 | Revisão de CSP, XSS e privacidade concluída |
+| B19 | Beta fechado e lançamento | B17, B18 | Checkpoint C4 atendido |
+
+### Decisões a registrar logo no início
+
+- [ ] Nome do produto e domínio
+- [ ] Gateway de pagamento e emissão de nota, com taxas confirmadas
+- [ ] Lista inicial de relações para política e para obras literárias
+- [ ] Revisão jurídica de LGPD, direitos autorais e termos
+
+## Camada 5: checkpoints, execução e prazo
+
+A V1 deve levar de 200 a 310 horas de trabalho, ou 8 a 12 semanas a 25 horas semanais. A primeira resposta sobre valor chega bem antes: o teste de percepção sai em 65 a 100 horas, sem conta nem pagamento. A estimativa é minha, com ajuda do Code, e deve ser revista no C1.
+
+&#91;embedded content: roteiro da V1 · fases e checkpoints, sem escala de tempo\]
+
+C4 ocorre 8 semanas depois do início do beta, além das horas acima.
+
+### Prazo por fase
+
+| Fase | Blocos | Horas | 10 h/sem | 15 h/sem | 25 h/sem |
+| --- | --- | --- | --- | --- | --- |
+| A. Motor em linha de comando | B00–B06 | 35–55 | 4–6 sem | 3–4 sem | 2 sem |
+| B. Valor e percepção | B07–B09 | 30–45 | 3–5 sem | 2–3 sem | 1–2 sem |
+| C. Dossiê completo | B10–B12 | 60–90 | 6–9 sem | 4–6 sem | 3–4 sem |
+| D. Navegador e conexões | B13–B15 | 30–50 | 3–5 sem | 2–4 sem | 1–2 sem |
+| E. Conta, exportação e segurança | B16–B18 | 30–45 | 3–5 sem | 2–3 sem | 1–2 sem |
+| F. Beta e ajustes | B19 | 15–25 | 2–3 sem | 1–2 sem | 1 sem |
+| **Total** |  | **200–310** | **20–31 sem** | **13–21 sem** | **8–12 sem** |
+
+### Checkpoints
+
+| Marco | Pergunta | Critério para seguir | Se falhar |
+| --- | --- | --- | --- |
+| C0, fim de B03 | O motor de teste funciona? | Mesmo contrato em 2 serviços; JSON válido acima de 95% | Trocar serviço ou prompt |
+| C1, fim de B06 | O método supera o prompt? | Recall 15 pontos acima do melhor prompt, sem perder precisão; 100% de provas localizadas | Refazer método antes de qualquer tela |
+| C2, fim de B09 | O dossiê cria valor percebido? | 2 ou 3 de 5 achados verdadeiros, novos e utilizáveis para a maioria de 5 pessoas | Trocar cálculo dos achados ou o formato |
+| C3, fim de B15 | O plano gratuito é viável? | Pessoa conclui um projeto sozinha; motor recomendado atende a regra da Camada 3 | Motor por API vira o padrão |
+| C4, 8 semanas após o beta | Vale continuar investindo? | 20 usuários ativos por semana, 5 conteúdos publicados e 10 exportações pagas ou 1 piloto institucional | Tratar como portfólio ou mudar o público |
+
+Os cortes são propostas minhas, não padrões de mercado. Fixe-os antes de ver os resultados, para não adaptar a meta depois.
+
+### O que medir
+
+| Grupo | Métrica | Quando | Fonte |
+| --- | --- | --- | --- |
+| Extração | Precisão e recall, por relação explícita e implícita | A cada mudança de prompt ou motor | `eval` |
+| Extração | % de provas localizadas e de JSON válido | Toda execução | `run` |
+| Identidade | F1 da união de nomes | C1 em diante | `eval` |
+| Valor | Achados verdadeiros, novos e utilizáveis | C2 e beta | Teste com pessoas |
+| Valor | Conteúdos publicados com a ferramenta | Beta | Entrevista e relato |
+| Produto | Visita → motor → projeto concluído → retorno | Beta | Eventos anônimos |
+| Produto | Tempo até o primeiro achado | Beta | Eventos anônimos |
+| Monetização | Clique em exportar, compra e segunda compra | Beta | API de licença |
+| Motor | Tokens, tempo por bloco, erros e pausas por cota | Toda execução | `run` |
+| Navegador | Pico de memória, travamentos e queda para API | C3 e beta | Telemetria sem conteúdo |
+| Custo | Gasto mensal e uso dos limites gratuitos | Semanal | Painel do provedor |
+
+### Plano de ação das primeiras semanas
+
+1. **Antes de codificar:** defina as 8 a 12 relações de *O Alienista* e anote o gabarito de 30 a 50 relações, sem olhar a saída de nenhum modelo.
+2. **Semana 1:** B00 a B03, com chaves de teste.
+3. **Semana 2:** B04 e B05, processando 2 capítulos com revisão manual.
+4. **Semana 3:** B06, rodando os cenários A, B e C e publicando o relatório interno.
+5. **Decisão:** abra o C1 antes de escrever qualquer tela, e ajuste o plano com o tempo real gasto.
+
+## Camada 6: descritivo para o Code
+
+Você numerou duas camadas como 5; tratei esta como a sexta. Copie o bloco abaixo para o `CLAUDE.md` do repositório e peça ao Code para executar só de B00 a B03, parando para revisão ao fim de cada bloco.
+
+```markdown
+# Mapa de Relações
+
+## Contexto
+Aplicação web que transforma documentos em um dossiê navegável de pessoas,
+relações, provas, linha do tempo e notas. A V1 roda quase toda no navegador
+para manter custo fixo perto de zero. O motor de IA é do usuário ou local.
+Demonstração: O Alienista, de Machado de Assis (domínio público).
+
+## Princípios obrigatórios
+1. Domínio sem dependência de fornecedor, banco ou biblioteca de grafo.
+2. Toda dependência externa fica atrás de um contrato em packages/core.
+3. Toda saída de IA passa por validação Zod antes de entrar no sistema.
+4. Relação sem trecho localizado no texto original é rejeitada por código.
+5. A decisão humana nunca é sobrescrita por novo processamento.
+6. Conteúdo do usuário nunca vai ao servidor do produto.
+7. Não guardar senhas de terceiros nem automatizar interfaces de chat.
+8. Texto vindo de documentos é dado, nunca instrução, e sempre é escapado no HTML.
+9. Trabalho pesado roda fora da thread principal.
+10. Cada resultado registra modelo, versão do prompt e parâmetros.
+
+## Stack inicial
+TypeScript estrito, pnpm workspaces, Vitest, ESLint, Prettier, Zod.
+Node 22 para scripts. Vite e React entram só a partir de B09.
+Não adicione framework de agente nem SDK de um fornecedor específico no core.
+
+## Estrutura
+apps/web
+apps/account-api
+packages/core
+packages/engines
+packages/tasks
+packages/ingest
+packages/segment
+packages/pipeline
+packages/verify
+packages/resolve
+packages/analysis
+packages/store
+packages/compose
+packages/graph-view
+packages/exporter
+eval/gold
+eval/runs
+docs/adr
+
+## Modelo de domínio
+entity: id, projectId, preferredName, kind, description
+alias: id, entityId, name, source, confidence
+relationType: id, label, definition, version
+source: id, title, kind, publishedAt?, contentHash
+segment: id, sourceId, chapter?, startOffset, endOffset, text
+claim: id, subjectId, typeId, objectId, class, state, confidence
+evidence: id, claimId, sourceId, startOffset, endOffset, quote
+timeScope: claimId, storyTime?, publishedAt?, chapter?
+run: id, task, engine, model, promptVersion, inputTokens?, outputTokens?, status
+event: id, action, targetId, before, after, createdAt
+
+class: afirmada | inferida | coocorrencia
+state: proposta | verificada | rejeitada | confirmada_humano | rejeitada_humano
+
+## Contrato do motor
+LlmEngine expõe id, capabilities e complete(req, signal).
+capabilities: jsonSchema, maxContextTokens, runsLocally, dataPolicyNote.
+LlmRequest: messages, jsonSchema?, maxOutputTokens, temperature, metadata.
+LlmResponse: text, parsedJson?, usage?, finishReason, raw.
+Erros tipados: RateLimited(retryAt?), InvalidResponse, Auth, Network, Aborted.
+
+## Blocos atuais
+
+### B00: fundação
+Criar monorepo, scripts test, lint, typecheck e eval, além de CI.
+Pronto quando: CI verde com um teste real.
+
+### B01: core
+Implementar tipos, schemas Zod, IDs estáveis, regras de transição de estado
+e interfaces LlmEngine, SourceConnector, DocumentParser, ProjectStore e GraphView.
+Pronto quando: testes cobrem transições válidas e inválidas, inclusive a regra
+de que estados humanos não mudam por execução automática.
+
+### B02: avaliação
+Criar eval/gold/alienista.json com capítulos, relações e apelidos.
+O arquivo começa com exemplos marcados como fictícios; o humano preencherá o gabarito.
+Criar comando pnpm eval --run <arquivo> --gold <arquivo>.
+Calcular precisão, recall e F1 por tipo e classe, provas localizadas e JSON válido.
+Comparar relações depois de normalizar nomes por alias.
+Pronto quando: testes com saídas sintéticas produzem as métricas esperadas.
+
+### B03: motor e tarefas
+Criar adaptador OpenAI compatível, configurável por baseUrl, chave e modelo,
+com espera exponencial, abort e erros tipados.
+Criar as tarefas extract_entities e extract_relations com prompt versionado.
+Documentar suporte a JSON Schema por capacidade, com fallback para JSON simples.
+Chaves vêm apenas de variáveis de ambiente locais; nunca as registrar em log.
+Pronto quando: testes usam servidor falso e um comando manual chama dois provedores.
+
+## Definição de pronto
+Tipos e testes passando, sem any novo, sem segredo no repositório,
+documentação atualizada e decisão relevante registrada em docs/adr.
+Ao terminar um bloco, relate o que mudou, como testar e o que ficou pendente.
+Não avance para o próximo bloco sem revisão.
+
+## Fora do escopo agora
+Interface, conta, pagamento, Google Drive, WebLLM, extensão e scraping.
+```
+
+### Como conduzir o Code
+
+1. Crie o repositório e adicione este texto como `CLAUDE.md`.
+2. Peça: "Leia o `CLAUDE.md`, proponha o plano de B00 e execute só esse bloco".
+3. Revise o resultado, rode os testes e faça o commit antes do bloco seguinte.
+4. Anote o gabarito à mão antes de pedir a primeira execução real.
+5. Use somente *O Alienista* com a Mistral gratuita, porque esse plano exige aceitar uso para treino.
+
+## Riscos e questões em aberto
+
+O maior risco é de produto: achados corretos, mas óbvios, que não justifiquem usar a ferramenta. Os riscos técnicos têm saída prevista, porque cada um está atrás de um contrato substituível.
+
+| Risco | Sinal de alerta | Resposta |
+| --- | --- | --- |
+| Achados óbvios | Menos de 2 achados novos no C2 | Mudar cálculos e tipos de achado antes de seguir |
+| Prompt empata com o método | C1 sem ganho de recall | Focar em múltiplas fontes e trabalho contínuo |
+| Modelo local fraco ou lento | C3 reprovado | Deixar experimental e priorizar motor por API |
+| Motor gratuito muda ou sai do ar | Falhas ou cota instável | Trocar a rota e oferecer alternativas |
+| Configuração afasta usuários | Queda entre visita e motor | Demonstração melhor e, se houver sinal de compra, motor pago |
+| Relação falsa sobre pessoa real | Reclamação ou erro no teste | Classes visíveis, prova sempre visível e canal de correção |
+| Uso abusivo sobre pessoa privada | Relato ou padrão externo | Termos e orientação; a moderação é limitada no modo local |
+| Direitos autorais | Questionamento de um titular | Sem acervo próprio, trechos curtos e nada público com conteúdo pago |
+
+### Questões em aberto
+
+- [ ] A Mistral e outros serviços aceitam chamadas diretas do navegador? Testar em B14.
+- [ ] O escopo `drive.file` permite ler o conteúdo de uma pasta escolhida no Picker? O [seletor aceita pastas](https://developers.google.com/workspace/drive/picker/guides/desktop-mobile-picker), mas a leitura precisa de teste.
+- [ ] A verificação de sessão e a assinatura cabem nos [10 ms de CPU](https://developers.cloudflare.com/workers/platform/pricing/index.md) do Workers gratuito?
+- [ ] Tucano 2 pode ser convertido para o navegador sem perda relevante?
+- [ ] Qual preço por exportação funciona na prática? R$ 9,90 é só o ponto de partida.
+
+Este documento não é parecer jurídico. LGPD, direitos autorais, termos dos provedores e responsabilidade por conteúdo gerado precisam de revisão antes do lançamento.
+
+## Fontes
+
+Consultadas em 3 de novembro de 2026. Limites e preços mudam com frequência; confirme na página do provedor antes de usar. Alguns dados vêm de trechos de busca e guias de terceiros, então confira a fonte original antes de decisões definitivas.
+
+**Interface:** [Cambridge Intelligence: emaranhados](https://cambridge-intelligence.com/how-to-fix-hairballs/) · [Cambridge Intelligence: UX](https://cambridge-intelligence.com/getting-the-perfect-look-and-feel-for-your-network-visualizations/) · [Redes dinâmicas](https://cambridge-intelligence.com/methods-visualizing-dynamic-networks/) · [SemSpect](https://ceur-ws.org/Vol-3526/paper-07.pdf) · [Story Ribbons](https://arxiv.org/pdf/2508.06772) · [Kumu: foco](https://docs.kumu.io/guides/focus) · [Kumu: visões](https://docs.kumu.io/guides/views) · [Kumu: editor](https://docs.kumu.io/overview/user-interfaces/map-editor) · [Redes de personagens](https://www.creta.uni-stuttgart.de/en/blog/2019/01/21/new-article-on-visualizing-character-networks/)
+
+**Tecnologia:** [Cytoscape.js e Sigma.js](https://ithelp.ithome.com.tw/articles/10387358) · [SQLite com OPFS](https://blog.openreplay.com/sqlite-browser-opfs/) · [Google Picker](https://developers.google.com/picker/docs/) · [Cloudflare Workers](https://developers.cloudflare.com/workers/platform/pricing/index.md) · [Limites da Cloudflare](https://freetier.co/cloudflare-free-tier) · [IA no navegador](https://pinggy.io/blog/run_llm_in_browser_webgpu/) · [Limites do WebGPU](https://tianpan.co/blog/2026-04-17-browser-native-llm-inference-webgpu)
+
+**Modelos:** [RelEx-PT](https://aclanthology.org/2026.lrec-1.609.pdf) · [Tucano 2](https://arxiv.org/html/2603.03543v1) · [OpenRouter PKCE](https://openrouter.ai/docs/guides/overview/auth/oauth) · [Comparação de APIs gratuitas](https://openrouter.ai/blog/tutorials/free-llm-apis-compared/) · [Limites gratuitos](https://benchlm.ai/md/free-tier.md) · [Saídas estruturadas](https://www.developersdigest.tech/blog/structured-outputs-across-ai-apis-2026) · [Preço do Haiku 5.5](https://apidog.com/blog/claude-haiku-5-5-pricing/)

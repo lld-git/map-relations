@@ -1,11 +1,11 @@
 """
 Adaptado de src/ingestion/url_loader.py do projeto Grafo.
-Mudanças: retorna (Source, str); calcula content_hash dos bytes da página.
+Mudanças: retorna (Source, str); calcula content_hash do texto extraído normalizado.
 """
 
 import trafilatura
 
-from .document import Source, compute_hash
+from .document import Source, compute_text_hash
 
 
 def load_url(url: str) -> tuple[Source, str]:
@@ -24,6 +24,6 @@ def load_url(url: str) -> tuple[Source, str]:
     source = Source(
         title=title,
         kind="url",
-        content_hash=compute_hash(downloaded.encode()),
+        content_hash=compute_text_hash(text),
     )
     return source, text

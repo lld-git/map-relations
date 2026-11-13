@@ -1,7 +1,7 @@
 """
 Adaptado de src/ingestion/pdf_loader.py do projeto Grafo.
 Mudanças: retorna (Source, str) em vez de Document; preserva quebras de parágrafo
-para segmentação posterior; calcula content_hash dos bytes brutos.
+para segmentação posterior; calcula content_hash do texto normalizado.
 """
 
 import re
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from .document import Source, compute_hash
+from .document import Source, compute_text_hash
 
 
 def _normalize_text(text: str) -> str:
@@ -26,7 +26,6 @@ def load_pdf(path: str | Path) -> tuple[Source, str]:
     — segmentos e menções referenciam posições nesse string.
     """
     path = Path(path)
-    raw_bytes = path.read_bytes()
     reader = PdfReader(path)
 
     pages: list[str] = []
@@ -39,6 +38,6 @@ def load_pdf(path: str | Path) -> tuple[Source, str]:
     source = Source(
         title=path.stem,
         kind="pdf",
-        content_hash=compute_hash(raw_bytes),
+        content_hash=compute_text_hash(text),
     )
     return source, text

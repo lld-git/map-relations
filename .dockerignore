@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+dist/
+
+# Git
+.git/
+.github/
+
+# Data e saídas de execução (montados como volumes)
+data/
+eval/runs/
+eval/reports/
+eval/reviews/
+
+# Segredos
+.env
+
+# Docs e IDE (não necessários na imagem)
+docs/
+.vscode/
+.idea/

@@ -7,6 +7,12 @@ navegador para manter custo fixo perto de zero. O motor de IA é do usuário ou 
 Demonstração: O Processo, de Franz Kafka (domínio público).
 Esta fase pesquisa o método em Python. O porte para TypeScript só ocorre após o C2.
 
+## Rotina de sessão
+No início de cada sessão, leia CLAUDE.md e docs/status.md antes de agir.
+Ao concluir um bloco ou antes de compactar, atualize docs/status.md.
+Registre decisões relevantes em docs/adr/.
+Grave artefatos aprovados pelo humano em arquivo imediatamente; nunca dependa só da conversa.
+
 ## Princípios obrigatórios
 1. Domínio sem dependência de fornecedor, banco ou biblioteca de grafo.
 2. Toda dependência externa fica atrás de um contrato.
@@ -20,6 +26,7 @@ Esta fase pesquisa o método em Python. O porte para TypeScript só ocorre após
 10. Cada resultado registra modelo, versão do prompt, parâmetros, nível e lente.
 11. O verificador nunca recebe a lente nem o nível que gerou a relação.
 12. "Sem evidência" é sempre uma saída válida para qualquer tarefa de extração.
+13. Tudo roda em Docker. Nunca instale dependências nem execute Python na máquina host.
 
 ## Método de extração
 N0 elenco e menções; N1 pares e fatos; N2 lacunas com memória.
@@ -30,7 +37,7 @@ Nenhum nível entra no produto sem passar no teste por níveis.
 
 ## Stack desta fase
 Python 3.12, uv, pytest, ruff, mypy, Pydantic, spaCy com modelo em português,
-RapidFuzz, NetworkX e httpx. Não adicione framework de agente.
+RapidFuzz, NetworkX, httpx e Docling. Não adicione framework de agente.
 Cliente de IA só por adaptador compatível com OpenAI.
 
 ## Estrutura
@@ -38,17 +45,17 @@ contracts/schemas
 contracts/prompts
 contracts/lenses
 contracts/cases
-research/mapa_relacoes/core
-research/mapa_relacoes/engines
-research/mapa_relacoes/tasks
-research/mapa_relacoes/ingest
-research/mapa_relacoes/segment
-research/mapa_relacoes/nlp
-research/mapa_relacoes/pipeline
-research/mapa_relacoes/verify
-research/mapa_relacoes/resolve
-research/mapa_relacoes/analysis
-research/mapa_relacoes/compose
+research/map_relations/core
+research/map_relations/engines
+research/map_relations/tasks
+research/map_relations/ingest
+research/map_relations/segment
+research/map_relations/nlp
+research/map_relations/pipeline
+research/map_relations/verify
+research/map_relations/resolve
+research/map_relations/analysis
+research/map_relations/compose
 eval/gold
 eval/runs
 docs/adr
@@ -58,18 +65,22 @@ apps e packages entram só a partir de B09
 entity: id, projectId, preferredName, kind, description
 alias: id, entityId, name, source, confidence
 mention: id, entityId, segmentId, startOffset, endOffset, surface
-relationType: id, label, definition, version
+relationType: id, label, definition, subjectKinds, objectKinds, version
 source: id, title, kind, publishedAt?, contentHash
 segment: id, sourceId, chapter?, startOffset, endOffset, text
 claim: id, subjectId, typeId, objectId, class, state, confidence, passId
-evidence: id, claimId, sourceId, startOffset, endOffset, quote
-timeScope: claimId, storyTime?, publishedAt?, chapter?
+participation: id, eventId, entityId, role, state, confidence, passId
+evidence: id, targetType, targetId, sourceId, startOffset, endOffset, quote
+timeScope: targetType, targetId, storyTime?, publishedAt?, chapter?, duration?
 lens: id, version, question, relationTypes, scope, retrieval, evidenceRule, maxCalls
 pass: id, level, lensId?, target, calls, proposed, verified, stopReason
 run: id, task, engine, model, promptVersion, inputTokens?, outputTokens?, status
-event: id, action, targetId, before, after, createdAt
+changeLog: id, action, targetType, targetId, before, after, createdAt
 note: id, targetType, targetId, kind, content, createdAt
 
+kind: pessoa | grupo | lugar | objeto | evento
+targetType: claim | participation | entity
+role: lista versionada em contracts, iniciando com autor | alvo | testemunha | beneficiario | participante
 class: afirmada | inferida | coocorrencia | interpretacao
 state: proposta | verificada | rejeitada | confirmada_humano | rejeitada_humano
 
@@ -86,12 +97,24 @@ Erros tipados: RateLimited(retry_at?), InvalidResponse, Auth, Network, Aborted.
 Criar projeto Python, comandos test, lint, typecheck e eval, além de CI.
 Pronto quando: CI verde com um teste real.
 
+### B00b: Docker
+Conteinerizar o B00 existente: Dockerfile, docker-compose.yml, .dockerignore e .env.example.
+Criar os serviços app e painel, com o serviço docling preparado para B04b.
+Usar usuário sem root, uv.lock, volumes para data e eval, e nenhum dado ou segredo na imagem.
+Adaptar o CI para usar as mesmas imagens, com um job que inclua o modelo spaCy.
+Pronto quando: docker compose run --rm app pytest passa em máquina sem Python.
+
 ### B01: core e contratos
 Implementar modelos Pydantic, IDs estáveis e regras de transição de estado.
+O modelo é genérico: entidades de qualquer kind, claims entre quaisquer entidades,
+participation para eventos e changeLog para auditoria. A V1 usa só kind pessoa.
+Validar subjectKinds e objectKinds de relationType ao criar uma claim.
+Participation e claim compartilham estados, evidência, verificador e regra humana.
 Gerar JSON Schema em contracts/schemas a partir dos modelos.
 Criar os Protocols LlmEngine, SourceConnector, DocumentParser e ProjectStore.
-Pronto quando: testes cobrem transições válidas e inválidas, inclusive a regra
-de que estados humanos não mudam por execução automática.
+Pronto quando: testes cobrem transições válidas e inválidas, a regra de que estados
+humanos não mudam por execução automática, criação de um evento com participações
+e rejeição de claim com kind incompatível.
 
 ### B02: avaliação
 Criar eval/gold/processo.json com capítulos, relações e apelidos.
@@ -101,6 +124,18 @@ Calcular precisão, recall e F1 por tipo, classe, nível e lente, provas localiz
 e JSON válido. Incluir recall de pessoas e pares de controle sem relação.
 Comparar relações depois de normalizar nomes por alias.
 Pronto quando: testes com saídas sintéticas produzem as métricas esperadas.
+
+### B02b: painel de testes
+Implementar o painel de testes em research/map_relations/painel.
+Stack: FastAPI, Jinja2, HTMX, Tailwind e daisyUI, com assets locais e sem build.
+Rodar no serviço painel do Docker Compose, publicado só em 127.0.0.1:8000.
+Ler somente eval/runs, eval/reports, eval/reviews e o texto em data/raw.
+O painel nunca escreve em eval/gold nem em contracts.
+A única escrita permitida é a revisão em eval/reviews/<run_id>.jsonl.
+Escapar todo texto vindo de documentos ou modelos.
+Execução sem arquivos deve mostrar estado vazio claro, não erro.
+Começar só por P0 e P1: contrato + arquivos + execução fictícia em eval/examples.
+Pronto quando: execução fictícia abre no painel, sem acesso a escrever o gabarito.
 
 ### B03: motor e tarefas
 Criar adaptador OpenAI compatível, configurável por base_url, chave e modelo,
