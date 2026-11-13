@@ -136,6 +136,22 @@ editar o .md muda o hash canônico (coberto por teste).
 interpreta a convenção; manter a chave de cache em código e as flags no
 Makefile exige nota de sincronia dos dois lados.
 
+### Ajustes pós-revisão (2026-11-13)
+
+- **Alertas sobre o .md atual:** quality.alerts passa a vir só do parser sobre
+  o documento.md atual; os alertas da conversão ficam numa seção à parte e são
+  marcados resolvidos quando o .md editado não os reproduz (edição detectada
+  por hash do .md gravado em conversao.json).
+- **Conversão por faixas:** o Docling converte em faixas de 40 páginas, cada
+  uma num processo separado. `DoclingDocument.concatenate` renumera as páginas
+  (descartado); a junção é feita nos MdBlocks, com página absoluta e a regra de
+  parágrafo que atravessa a fronteira. **O Processo inteiro (379 p.) converteu
+  em 10 faixas com pico de 2,12–2,45 GiB por faixa** (antes: OOM num processo
+  só na VM de 3,7 GiB) → 378 p., 1113 parágrafos, 9 capítulos, sem OOM.
+- **Aprendizado:** a classificação de títulos tem de ser global (depois da
+  junção), senão um capítulo explícito numa faixa posterior não rebaixa
+  maiúsculas de uma faixa anterior.
+
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 
 Fecha com o relatório do B06: regras vs. LLM vs. híbrido contra o gabarito.

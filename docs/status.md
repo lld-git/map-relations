@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-12
+# Status — atualizado em 2026-11-13
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -37,21 +37,23 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   versão+opções; CLI ingest/prepare/compare/clean; make ingest roda o Docling
   no cache miss; clean-processed lista órfãs (APPLY=1 remove).
   Relatório: [docs/blocks/B04c.md](blocks/B04c.md).
+- **B04c (ajustes 2026-11-13)** — alertas calculados sobre o documento.md
+  atual, com seção "Da conversão" marcando resolvidos; Docling por faixas de
+  40 páginas em processos separados (merge nos MdBlocks, página absoluta, regra
+  de parágrafo na fronteira). O Processo inteiro (379 p.) convertido sem OOM,
+  pico 2,45 GiB por faixa. Relatório: [docs/blocks/B04c.md](blocks/B04c.md).
 
 ## Em andamento
 
-- Nada — B04 e B04-docs aguardam revisão do Leon antes do B02.
+- Nada — bloco B04c aguarda revisão do Leon antes do B02.
 
 ## Pendências
 
 - Leon: adicionar 3–5 PDFs de diagramação variada em data/raw/ e listá-los em
   eval/pdfs/conjunto.txt; depois `make compare-all`.
-- Leon: aumentar a memória da VM do Docker Desktop (Settings → Resources,
-  sugerido 8 GiB) — com 3,7 GiB o Docling morre por OOM no livro de 379
-  páginas; a prova rodou numa fatia de 40 (data/raw/o_processo_p1-40.pdf).
-- Subtítulo em caixa mista grudado no primeiro parágrafo (ex.: "Prisão.
-  Conversa…"): sem solução genérica no pdf_loader; avaliar com o Docling (B04b).
-- Revisão humana dos blocos B04, B04-docs, B04-pkg e B04b-prova (docs/blocks/).
+- Subtítulo em caixa mista grudado no título pelo Docling (ex.: "C A P Í T U L O
+  IV A AMIGA DA MENINA BÜRSTNER"): corrigido na revisão humana do documento.md.
+- Revisão humana dos blocos B04, B04-docs, B04-pkg, B04b-prova e B04c (docs/blocks/).
 - Criar repositório remoto no GitHub (map-relations) — aguardando a conta do Leon.
 - Resto do B04: leitura de TXT e EPUB; migrar url_loader ao contrato
   IngestResult (hoje é o único candidato real em codigo_morto.txt).
