@@ -103,7 +103,12 @@ de ruff/mypy/pytest.
 (letras espaçadas, numeração fora da obra, capítulos vazios) e medir o Docling
 contra o pdf_loader no mesmo PDF antes de decidir o B04b.
 
-**Métricas:** (preencher após a primeira rodada de make compare-all)
+**Métricas:** O Processo: 24 "capítulos" errados → 10 corretos. Docling sem
+OCR: 61 s para 40 páginas (~1,5 s/página) na CPU; OOM com as 379 páginas na
+VM de 3,7 GiB do Docker Desktop. Na fatia de 40 páginas: títulos explícitos
+1 (pdf_loader) × 0 (Docling); blocos de texto 43 × 125; cabeçalhos/rodapés
+37 removidos por repetição × 0 rotulados pelo Docling; 1 parágrafo
+atravessando página detectado pelo Docling. 149 testes na conclusão.
 
 **Observações:** títulos explícitos têm precedência sobre a regra de
 maiúsculas; sem nenhum explícito, maiúsculas numeram com alerta. Nenhuma regra

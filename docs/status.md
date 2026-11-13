@@ -39,6 +39,9 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 - Leon: adicionar 3–5 PDFs de diagramação variada em data/raw/ e listá-los em
   eval/pdfs/conjunto.txt; depois `make compare-all`.
+- Leon: aumentar a memória da VM do Docker Desktop (Settings → Resources,
+  sugerido 8 GiB) — com 3,7 GiB o Docling morre por OOM no livro de 379
+  páginas; a prova rodou numa fatia de 40 (data/raw/o_processo_p1-40.pdf).
 - Subtítulo em caixa mista grudado no primeiro parágrafo (ex.: "Prisão.
   Conversa…"): sem solução genérica no pdf_loader; avaliar com o Docling (B04b).
 - Revisão humana dos blocos B04, B04-docs, B04-pkg e B04b-prova (docs/blocks/).
