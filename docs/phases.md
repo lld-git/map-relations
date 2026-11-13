@@ -80,6 +80,23 @@ o mapa usa módulos individuais com `--rmprefix`.
 **Aprendizados:** whitelist do vulture por categoria (campos Pydantic, métodos
 de Protocol, membros de enum) mantém o codigo_morto.txt com sinal, não ruído.
 
+## B04-pkg — Pacote instalável (concluído em 2026-11-11)
+
+**Objetivo:** `import map_relations` sem PYTHONPATH; editável na dev, não
+editável na prod.
+
+**Métricas:** 139 testes na conclusão; 41 nós no imports.svg; CLI verificada
+nas imagens dev e prod.
+
+**Observações:** hatchling com `packages = ["research/map_relations"]` mantém a
+pasta research/; CI com cache de camadas GHA.
+
+**Aprendizados:** dependência por URL exige `allow-direct-references` no
+hatchling; venv precisa estar no PATH da imagem para `python -m` funcionar sem
+`uv run`; caminho de dados não pode derivar de `__file__` quando o pacote vai
+para site-packages; config montada no contêiner evita rebuild a cada ajuste
+de ruff/mypy/pytest.
+
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 
 Fecha com o relatório do B06: regras vs. LLM vs. híbrido contra o gabarito.
