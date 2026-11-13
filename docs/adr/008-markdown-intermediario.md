@@ -1,7 +1,7 @@
 # ADR 008 — Markdown estruturado como formato intermediário único da ingestão
 
 **Data:** 2026-11-12  
-**Status:** proposto (aguardando revisão do Leon)
+**Status:** aceito (revisado pelo Leon em 2026-11-12)
 
 ## Contexto
 
@@ -101,17 +101,26 @@ específico. Reprocessar depois de editar é obrigatório e barato (parser
 | Testes de limpeza de página | movem para a rota pdf_loader |
 | Testes novos | convenção do .md, escape, parser único, cache, limpeza de órfãos |
 
-## Questões em aberto (decidir na revisão)
+## Questões decididas na revisão (Leon, 2026-11-12)
 
-1. **Mapa de páginas × edição humana**: pages.json por offsets quebra quando
-   o humano edita o .md. Alternativa recomendada: marcadores de página como
-   comentários HTML no próprio .md (`<!-- p.12 -->`), que sobrevivem à edição
-   e são removidos pelo parser antes do canônico. Custo: polui levemente o
-   arquivo editado.
-2. **Subtítulo no contrato**: hoje subtítulo vira parágrafo de texto com
-   alerta. Com a convenção do itálico, vale criar `ParagraphKind.subtitulo`?
-3. **pandoc**: entra na imagem dev (+~90 MB) ou em serviço próprio como o
-   Docling?
+1. **Mapa de páginas**: marcadores de página como comentários HTML no próprio
+   .md (`<!-- p.12 -->`). Sobrevivem à edição humana e são removidos pelo
+   parser antes do canônico; pages.json deixa de ser arquivo separado.
+2. **Subtítulo no contrato**: criar `ParagraphKind.subtitulo` para a linha em
+   itálico após o título.
+3. **pandoc**: entra na imagem dev (leve, sem modelos); não ganha serviço.
+
+**Regra de ordem no B02 (confirmada):** revisar documento.md ANTES de
+preencher o gabarito. Editar o .md muda o hash canônico e invalida qualquer
+offset já registrado (gabarito, evidências).
+
+## Pendente futuro (registrado, nada agora)
+
+Materiais com **tabelas ou imagens** precisarão de revisão desta decisão
+(hoje a conversão as desliga). No produto, o usuário deve poder informar em
+caixas de seleção o que o material contém e o que deseja extrair (texto,
+tabelas, imagens) — as opções de conversão derivam dessa escolha, e a chave
+de cache (§4) já comporta isso por incluir as opções.
 
 ## Consequências esperadas
 
