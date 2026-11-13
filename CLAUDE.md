@@ -9,12 +9,17 @@ Esta fase pesquisa o método em Python. O porte para TypeScript só ocorre após
 
 ## Rotina de sessão
 No início de cada sessão, leia CLAUDE.md e docs/status.md antes de agir.
-Ao concluir um bloco ou antes de compactar, atualize docs/status.md.
-Ao concluir cada bloco, grave o relatório de conclusão verbatim em
-docs/blocks/<bloco>.md antes de pedir revisão, com commit e data no topo
-e uma seção "Revisão humana" vazia para o humano preencher.
-Registre decisões relevantes em docs/adr/.
 Grave artefatos aprovados pelo humano em arquivo imediatamente; nunca dependa só da conversa.
+
+Quando atualizar cada arquivo:
+- README.md: quando um comando mudar.
+- docs/architecture.md: quando um contrato ou camada mudar.
+- docs/adr/: a cada decisão relevante.
+- docs/blocks/<bloco>.md: ao concluir o bloco, com o relatório verbatim,
+  commit e data no topo e seção "Revisão humana" vazia para o humano preencher.
+- docs/status.md: ao concluir um bloco e antes de /clear ou /compact.
+- docs/phases.md: ao concluir um bloco ou checkpoint.
+- make map, docs/mapa/fluxo.md e docs/mapa/arquivos.md: ao concluir cada bloco.
 
 ## Princípios obrigatórios
 1. Domínio sem dependência de fornecedor, banco ou biblioteca de grafo.

@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: dev
     # Docker Desktop para Linux mapeia root do contêiner → usuário do host (ver ADR 002).
     # Fora do Desktop (CI, deploy) a imagem usa appuser (UID 1000) por padrão.
     user: "0:0"
@@ -9,6 +11,7 @@ services:
       - ./tests:/app/tests
       - ./contracts:/app/contracts
       - ./scripts:/app/scripts
+      - ./docs:/app/docs
       - ./eval:/app/eval
       - ./data:/app/data
     env_file:
@@ -16,7 +19,9 @@ services:
         required: false
 
   painel:
-    build: .
+    build:
+      context: .
+      target: dev
     user: "0:0"
     command: uv run uvicorn research.map_relations.painel.main:app --host 0.0.0.0 --port 8000 --reload
     ports:

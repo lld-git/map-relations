@@ -1,0 +1,8 @@
+research/map_relations/core/ingest_contract.py:85: unused method 'locate' (60% confidence)
+research/map_relations/core/rules.py:21: unused function 'validate_claim_kinds' (60% confidence)
+research/map_relations/core/rules.py:39: unused function 'transition' (60% confidence)
+research/map_relations/core/states.py:29: unused function 'is_terminal' (60% confidence)
+research/map_relations/ingest/pdf_loader.py:28: unused class 'PdfParser' (60% confidence)
+research/map_relations/ingest/url_loader.py:13: unused function 'load_url' (60% confidence)
+research/map_relations/nlp/ner.py:55: unused function 'extract_mentions' (60% confidence)
+research/map_relations/nlp/ner.py:82: unused function 'unique_names' (60% confidence)

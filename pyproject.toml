@@ -20,6 +20,8 @@ dev = [
     "ruff>=0.6",
     "mypy>=1.11",
     "pydantic>=2.9",
+    "pydeps>=1.12",
+    "vulture>=2.11",
 ]
 
 [tool.uv]

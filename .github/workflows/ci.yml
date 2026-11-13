@@ -5,33 +5,21 @@ on:
   pull_request:
 
 jobs:
+  # Testes e verificações rodam na imagem dev (mesma do desenvolvimento).
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-      - run: uv sync
-      - run: uv run ruff check .
-      - run: uv run mypy research tests scripts
-      - run: uv run python -m scripts.generate_schemas --check
-      - run: uv run pytest -m "not requires_spacy_model"
+      - run: docker build --target dev -t map-relations-dev .
+      - run: docker run --rm map-relations-dev uv run ruff check .
+      - run: docker run --rm map-relations-dev uv run mypy research tests scripts
+      - run: docker run --rm map-relations-dev uv run python -m scripts.generate_schemas --check
+      - run: docker run --rm map-relations-dev uv run pytest
 
-  test-spacy:
+  # Garante que a imagem de execução (sem ferramentas de dev) continua construível.
+  build-prod:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
-      - run: uv sync
-      - run: uv run python -m spacy download pt_core_news_sm
-      - run: uv run pytest -m requires_spacy_model -v
-
-  test-docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t map-relations-test .
-      - run: docker run --rm map-relations-test uv run pytest
+      - run: docker build --target prod -t map-relations-prod .
+      - run: docker run --rm map-relations-prod python -c "import research.map_relations.core.models"
