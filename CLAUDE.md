@@ -128,7 +128,7 @@ Pronto quando: testes com saídas sintéticas produzem as métricas esperadas.
 ### B02b: painel de testes
 Implementar o painel de testes em research/map_relations/painel.
 Stack: FastAPI, Jinja2, HTMX, Tailwind e daisyUI, com assets locais e sem build.
-Rodar no serviço painel do Docker Compose, publicado só em 127.0.0.1:8000.
+Rodar no serviço painel do Docker Compose, publicado só em 127.0.0.1:8010.
 Ler somente eval/runs, eval/reports, eval/reviews e o texto em data/raw.
 O painel nunca escreve em eval/gold nem em contracts.
 A única escrita permitida é a revisão em eval/reviews/<run_id>.jsonl.
