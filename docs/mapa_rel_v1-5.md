@@ -11,7 +11,7 @@ A versão 1 é uma aplicação web que roda quase toda no navegador e transforma
 | Tema | Decisão da V1 | Motivo |
 | --- | --- | --- |
 | Público inicial | Comentaristas e criadores que precisam citar fontes | É o grupo mais provável de pagar; geek e religioso servem para demonstração |
-| Demonstração | *O Processo*, em domínio público | Curto, em português e sem risco de direitos autorais |
+| Demonstração | *O Processo*, de Franz Kafka | Sem risco de direitos autorais |
 | Processamento | No navegador, em Web Workers | Sem custo de servidor por página processada |
 | Motor de IA | OpenRouter por PKCE, chave do próprio usuário e modelo local | Você não paga por uso nem guarda credenciais |
 | Dados | Armazenamento local; no servidor, só nome do projeto e contagens | Reduz custo, vazamento e exposição à LGPD |

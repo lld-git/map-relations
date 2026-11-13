@@ -1,82 +1,91 @@
-# Mapa de Relações
+# Map Relations
 
-Transforma documentos em um dossiê navegável de pessoas, relações, provas,
-linha do tempo e notas. Fase atual: pesquisa do método em Python
-(ver `CLAUDE.md` para o plano de blocos e `docs/architecture.md` para a arquitetura).
+Transforms documents into a navigable dossier of people, relations, evidence,
+a timeline, and notes. This phase researches the method in Python
+(see `CLAUDE.md` for the block plan and `docs/architecture.md` for the architecture).
 
-## Requisitos
+## About
 
-- Docker + Docker Compose ≥ 2.24 (para `env_file.path` e `env_file.required`)
+A web application that extracts entities and relationships from plain-text
+documents and organises them into a structured, evidence-linked dossier.
+Designed with no vendor lock-in: no proprietary graph database or cloud
+dependency required. The AI engine is pluggable (any OpenAI-compatible
+provider or local model). The end product runs almost entirely in the browser
+to keep fixed costs near zero. The TypeScript port happens only after C2.
+
+## Requirements
+
+- Docker + Docker Compose ≥ 2.24 (for `env_file.path` and `env_file.required`)
 - GNU Make
 - Git
 
-Nenhuma dependência Python instalada na máquina host: tudo roda em Docker
-(princípio 13 do CLAUDE.md).
+No Python dependency installed on the host machine: everything runs in Docker
+(principle 13 in CLAUDE.md).
 
-## Configuração
+## Setup
 
 ```bash
-cp .env.example .env   # preencha só as chaves de API que for usar
+cp .env.example .env   # fill in only the API keys you plan to use
 docker compose build
 ```
 
-O `.env` nunca é commitado; o `.env.example` lista as variáveis esperadas
+`.env` is never committed; `.env.example` lists the expected variables
 (MISTRAL_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY).
 
-## Onde colocar os documentos
+## Document storage
 
-Em `data/raw/` (ignorado pelo Git) — PDF, TXT, EPUB, DOCX ou HTML. A ingestão
-(ADR 008) grava em `data/processed/<hash_do_arquivo>/`:
+Place files in `data/raw/` (ignored by Git) — PDF, TXT, EPUB, DOCX, or HTML.
+Ingestion (ADR 008) writes to `data/processed/<file_hash>/`:
 
-- `documento.md` — **fonte em Markdown, que você revisa e edita**
-- `docling/<versão>-<opções>/docling.json` — cache da conversão cara (1× por PDF)
-- `canonical.txt`, `ingest.json`, `report.md` — derivados do `.md`
+- `documento.md` — **the Markdown source you review and edit**
+- `docling/<version>-<options>/docling.json` — conversion cache (1× per PDF)
+- `canonical.txt`, `ingest.json`, `report.md` — derived from the `.md`
 
-Regra de integridade: editar `documento.md` muda o hash canônico — rode
-`make ingest` de novo (barato) e só depois preencha gabaritos.
+Integrity rule: editing `documento.md` changes the canonical hash — rerun
+`make ingest` (cheap) before filling in gold labels.
 
-## Comandos (Makefile)
+## Commands (Makefile)
 
-Todos os alvos rodam dentro do contêiner via `docker compose`.
+All targets run inside the container via `docker compose`.
 
-| Alvo | O que faz |
+| Target | What it does |
 |---|---|
 | `make test` | pytest |
 | `make lint` | ruff |
-| `make typecheck` | mypy em research, tests e scripts |
-| `make schema-check` | falha se os JSON Schemas de contracts/ estiverem desatualizados |
+| `make typecheck` | mypy on research, tests, and scripts |
+| `make schema-check` | fails if JSON Schemas in contracts/ are out of date |
 | `make check` | lint + typecheck + schema-check + test |
-| `make ingest PDF=<arquivo>` | documento de `data/raw/` → `data/processed/<hash>/` (roda o Docling se faltar cache) |
-| `make map` | gera `docs/mapa/imports.svg` (pydeps) e `docs/mapa/codigo_morto.txt` (vulture) |
-| `make shell` | shell bash dentro do contêiner |
-| `make docling PDF=<arquivo>` | preenche o cache Docling por faixas de página (`RANGE=40`; pula faixas prontas) |
-| `make compare PDF=<arquivo>` | compara pdf_loader × Docling → `comparacao_docling.md` |
-| `make compare-all` | compara todos os PDFs listados em `eval/pdfs/conjunto.txt` |
-| `make clean-processed` | lista pastas órfãs de `data/processed/` (`APPLY=1` remove) |
+| `make ingest PDF=<file>` | document from `data/raw/` → `data/processed/<hash>/` (runs Docling if cache is missing) |
+| `make map` | generates `docs/mapa/imports.svg` (pydeps) and `docs/mapa/codigo_morto.txt` (vulture) |
+| `make shell` | bash shell inside the container |
+| `make docling PDF=<file>` | fills the Docling cache in page ranges (`RANGE=40`; skips completed ranges) |
+| `make compare PDF=<file>` | compares pdf_loader × Docling → `comparacao_docling.md` |
+| `make compare-all` | compares all PDFs listed in `eval/pdfs/conjunto.txt` |
+| `make clean-processed` | lists orphan folders in `data/processed/` (`APPLY=1` removes them) |
 
-Exemplo de ingestão:
+Ingestion example (output is illustrative):
 
 ```bash
-cp ~/Downloads/o-processo.pdf data/raw/
-make ingest PDF=o-processo.pdf
-# hash do arquivo: 3f2a…
-# hash canônico:   9c81…
-# saída: /app/data/processed/3f2a…
-# qualidade: 230 páginas, 412 parágrafos, 10 capítulos, 460 itens removidos, 0 alertas
+cp ~/Downloads/my-document.pdf data/raw/
+make ingest PDF=my-document.pdf
+# file hash:      3f2a…
+# canonical hash: 9c81…
+# output: /app/data/processed/3f2a…
+# quality: 230 pages, 412 paragraphs, 10 chapters, 460 items removed, 0 alerts
 ```
 
-Depois revise `data/processed/<hash>/documento.md` (apague paratexto, corrija
-títulos) e rode `make ingest` de novo — a revisão nunca é sobrescrita
-(só com `--force-md` na CLI).
+After that, review `data/processed/<hash>/documento.md` (remove paratext, fix
+titles) and run `make ingest` again — the review is never overwritten
+(only with `--force-md` on the CLI).
 
-O painel de desenvolvimento (B02b, ainda não implementado) subirá com
-`docker compose up painel` em `127.0.0.1:8010`.
+The development panel (B02b, not yet implemented) will start with
+`docker compose up painel` at `127.0.0.1:8010`.
 
-## Documentação
+## Documentation
 
-- `docs/architecture.md` — camadas, contratos e ADRs
-- `docs/mapa/fluxo.md` — fluxo de dados (único diagrama de fluxo)
-- `docs/mapa/arquivos.md` — papel e status de cada arquivo .py
-- `docs/status.md` — estado atual e handoff
-- `docs/phases.md` — métricas e aprendizados por fase
-- `docs/blocks/` — relatório de conclusão de cada bloco com revisão humana
+- `docs/architecture.md` — layers, contracts, and ADRs
+- `docs/mapa/fluxo.md` — data flow (the single flow diagram)
+- `docs/mapa/arquivos.md` — role and status of each .py file
+- `docs/status.md` — current state and handoff
+- `docs/phases.md` — metrics and learnings per phase
+- `docs/blocks/` — completion report for each block with human review

@@ -40,7 +40,7 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - **B04c (ajustes 2026-11-13)** — alertas calculados sobre o documento.md
   atual, com seção "Da conversão" marcando resolvidos; Docling por faixas de
   40 páginas em processos separados (merge nos MdBlocks, página absoluta, regra
-  de parágrafo na fronteira). O Processo inteiro (379 p.) convertido sem OOM,
+  de parágrafo na fronteira). O documento de teste inteiro (379 p.) convertido sem OOM,
   pico 2,45 GiB por faixa. Relatório: [docs/blocks/B04c.md](blocks/B04c.md).
 
 ## Em andamento

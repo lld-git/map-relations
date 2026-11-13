@@ -15,9 +15,9 @@ MD = """\
 
 # Capítulo I
 
-*Prisão. Conversa com a senhora Grubach*
+*A Visita. Conversa com a senhora Grubach*
 
-Alguém caluniara Josef K.
+Josef K. entrou na sala.
 
 <!-- p.2 -->
 
@@ -35,8 +35,8 @@ def test_parse_builds_chapters_subtitles_and_pages():
     by_kind = {(p.chapter, p.kind): p for p in r.paragraphs}
     assert by_kind[(1, ParagraphKind.titulo)].page == 1
     assert by_kind[(1, ParagraphKind.subtitulo)].number == 0
-    assert r.locate(r.text.index("Prisão.")) == "cap. 1, subtítulo"
-    assert r.locate(r.text.index("Alguém")) == "cap. 1, § 1"
+    assert r.locate(r.text.index("A Visita.")) == "cap. 1, subtítulo"
+    assert r.locate(r.text.index("Josef K. entrou")) == "cap. 1, § 1"
     assert r.locate(r.text.index("A cozinheira")) == "cap. 1, § 2"
     assert r.locate(r.text.index("O inquérito")) == "cap. 2, § 1"
 
@@ -97,6 +97,6 @@ def test_render_parse_roundtrip_preserves_structure():
 def test_human_edit_changes_canonical_hash():
     """Regra de integridade do ADR 008: editar o .md muda o hash canônico."""
     before = parse_markdown(MD, title="t", kind="pdf")
-    after = parse_markdown(MD.replace("Alguém caluniara", "Alguém difamara"),
+    after = parse_markdown(MD.replace("Josef K. entrou na sala.", "Josef K. saiu da sala."),
                            title="t", kind="pdf")
     assert before.source.content_hash != after.source.content_hash

@@ -33,16 +33,16 @@ def test_page_ranges_default():
 
 def test_paragraph_cut_mid_sentence_is_rejoined():
     # parágrafo cortado: faixa A termina sem pontuação final, faixa B começa minúsculo
-    a = _doc([1, 2], [("text", "Alguém caluniara Josef K. e o processo seguiu sem", 2)])
-    b = _doc([3, 4], [("text", "parar durante semanas a fio.", 3)])
+    a = _doc([1, 2], [("text", "Josef K. aguardou em silêncio e o caso seguiu sem", 2)])
+    b = _doc([3, 4], [("text", "resolução por semanas a fio.", 3)])
     blocks, _, _, pages = merge_range_docs([a, b])
     assert pages == 4
     textos = [x.text for x in blocks if x.kind is ParagraphKind.texto]
     assert textos == [
-        "Alguém caluniara Josef K. e o processo seguiu sem parar durante semanas a fio."
+        "Josef K. aguardou em silêncio e o caso seguiu sem resolução por semanas a fio."
     ]
     # não ficou partido em dois
-    assert "Alguém caluniara Josef K. e o processo seguiu sem" not in textos
+    assert "Josef K. aguardou em silêncio e o caso seguiu sem" not in textos
 
 
 def test_hyphen_at_boundary_is_dehyphenated():

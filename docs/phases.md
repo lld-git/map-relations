@@ -99,11 +99,11 @@ de ruff/mypy/pytest.
 
 ## B04b-prova — Correções genéricas e prova do Docling (concluído em 2026-11-12)
 
-**Objetivo:** corrigir de forma genérica os problemas vistos no O Processo
+**Objetivo:** corrigir de forma genérica os problemas vistos no documento de teste
 (letras espaçadas, numeração fora da obra, capítulos vazios) e medir o Docling
 contra o pdf_loader no mesmo PDF antes de decidir o B04b.
 
-**Métricas:** O Processo: 24 "capítulos" errados → 10 corretos. Docling sem
+**Métricas:** Documento de teste: 24 "capítulos" errados → 10 corretos. Docling sem
 OCR: 61 s para 40 páginas (~1,5 s/página) na CPU; OOM com as 379 páginas na
 VM de 3,7 GiB do Docker Desktop. Na fatia de 40 páginas: títulos explícitos
 1 (pdf_loader) × 0 (Docling); blocos de texto 43 × 125; cabeçalhos/rodapés
@@ -115,7 +115,7 @@ maiúsculas; sem nenhum explícito, maiúsculas numeram com alerta. Nenhuma regr
 específica de livro.
 
 **Aprendizados:** a regra de maiúsculas sozinha transforma folha de rosto,
-sinopse e subtítulos em capítulos; precedência resolve sem lista de exceções.
+paratexto e subtítulos em capítulos; precedência resolve sem lista de exceções.
 
 ## B04c — Markdown intermediário único (concluído em 2026-11-12)
 
@@ -126,7 +126,7 @@ versão+opções; layout data/processed/<hash_do_arquivo>/.
 **Métricas:** 165 testes na conclusão. Medição Docling na fatia de 40 páginas
 (VM 3,7 GiB): padrão 84,4 s / pico 3,05 GiB; com OCR, tabelas e imagens
 desligados 64,2 s / 2,32 GiB (−24% tempo, −22% memória). O pico de ~3 GiB do
-modo padrão explica o OOM do livro de 379 páginas.
+modo padrão explica o OOM do documento de 379 páginas.
 
 **Observações:** documento.md nunca é sobrescrito sem --force-md;
 conversao.json preserva removidos e alertas da conversão para reparses;
@@ -145,7 +145,7 @@ Makefile exige nota de sincronia dos dois lados.
 - **Conversão por faixas:** o Docling converte em faixas de 40 páginas, cada
   uma num processo separado. `DoclingDocument.concatenate` renumera as páginas
   (descartado); a junção é feita nos MdBlocks, com página absoluta e a regra de
-  parágrafo que atravessa a fronteira. **O Processo inteiro (379 p.) converteu
+  parágrafo que atravessa a fronteira. **O documento de teste inteiro (379 p.) converteu
   em 10 faixas com pico de 2,12–2,45 GiB por faixa** (antes: OOM num processo
   só na VM de 3,7 GiB) → 378 p., 1113 parágrafos, 9 capítulos, sem OOM.
 - **Aprendizado:** a classificação de títulos tem de ser global (depois da

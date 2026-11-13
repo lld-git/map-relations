@@ -64,11 +64,11 @@ para a revisão apontar de volta ao .md.
 
 #### Conversão por faixas (B04c)
 
-O pico de memória cresce com o número de páginas do processo; com o livro
-inteiro (379 p.) estourava a VM de 3,7 GiB. Solução: converter em **faixas de
+O pico de memória cresce com o número de páginas do documento; com o documento
+completo (379 p.) estourava a VM de 3,7 GiB. Solução: converter em **faixas de
 páginas** (padrão 40), cada faixa num **processo separado** — a memória é
-liberada entre faixas, então o pico fica limitado ao tamanho da faixa e o livro
-inteiro cabe na VM sem aumentá-la.
+liberada entre faixas, então o pico fica limitado ao tamanho da faixa e o documento
+completo cabe na VM sem aumentá-la.
 
 - Cada faixa grava `pages_XXXX-YYYY.json` no diretório do cache; faixas já
   convertidas são puladas.

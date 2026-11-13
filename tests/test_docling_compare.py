@@ -4,21 +4,21 @@ from map_relations.ingest.canonical import build_ingest_result
 from map_relations.ingest.docling_compare import compare
 
 PAGES = [
-    "O PROCESSO\nFranz Kafka Editora Teste.",
-    "Capítulo I\nAlguém caluniara Josef K.",
+    "O PROCESSO\nFranz Kafka, 1925.",
+    "Capítulo I\nJosef K. entrou na sala.",
 ]
 
 DOCLING_DOC = {
     "texts": [
         {"label": "title", "text": "O PROCESSO", "prov": [{"page_no": 1}]},
-        {"label": "text", "text": "Franz Kafka Editora Teste.", "prov": [{"page_no": 1}]},
+        {"label": "text", "text": "Franz Kafka, 1925.", "prov": [{"page_no": 1}]},
         {"label": "section_header", "text": "Capítulo I", "prov": [{"page_no": 2}]},
         {
             "label": "section_header",
             "text": "Prisão. Conversa com Grubach",
             "prov": [{"page_no": 2}],
         },
-        {"label": "text", "text": "Alguém caluniara Josef K.", "prov": [{"page_no": 2}]},
+        {"label": "text", "text": "Josef K. entrou na sala.", "prov": [{"page_no": 2}]},
         {
             "label": "text",
             "text": "Parágrafo que atravessa a página.",

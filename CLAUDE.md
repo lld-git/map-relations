@@ -181,9 +181,7 @@ Chaves vêm apenas de variáveis de ambiente locais; nunca as registrar em log.
 Pronto quando: testes usam servidor falso e um comando manual chama dois provedores.
 
 ## Material de demonstração
-O Processo (Der Proceß), de Franz Kafka, 1925. Domínio público.
-Usar tradução em português disponível no Projeto Gutenberg ou equivalente.
-Use somente este material com a Mistral gratuita: o plano exige aceitar uso para treino.
+Obra de teste interna, fornecida pelo humano em data/raw/ e nunca versionada.
 
 ## Definição de pronto
 Tipos e testes passando, sem segredo no repositório,

@@ -7,8 +7,8 @@ from map_relations.ingest.markdown import MdBlock, md_hash, render_markdown
 GENERATED = render_markdown(
     [
         MdBlock("O PROCESSO", ParagraphKind.texto, page=1),
-        MdBlock("C A P Í T U L O I Prisão. Conversa com Grubach", ParagraphKind.texto, page=4),
-        MdBlock("Alguém caluniara Josef K.", ParagraphKind.texto, page=4),
+        MdBlock("C A P Í T U L O I A Visita. Conversa com Grubach", ParagraphKind.texto, page=4),
+        MdBlock("Josef K. entrou na sala.", ParagraphKind.texto, page=4),
     ]
 )
 
@@ -29,8 +29,8 @@ def test_edited_resolves_when_not_reproduced():
         [
             MdBlock("Nota de rosto", ParagraphKind.texto, page=1),
             MdBlock("CAPÍTULO I", ParagraphKind.titulo, page=4),
-            MdBlock("Prisão. Conversa com Grubach", ParagraphKind.subtitulo, page=4),
-            MdBlock("Alguém caluniara Josef K.", ParagraphKind.texto, page=4),
+            MdBlock("A Visita. Conversa com Grubach", ParagraphKind.subtitulo, page=4),
+            MdBlock("Josef K. entrou na sala.", ParagraphKind.texto, page=4),
         ]
     )
     out = classify_conversion_alerts(CONV_ALERTS, edited_md, edited=True)

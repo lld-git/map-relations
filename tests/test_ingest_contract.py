@@ -13,29 +13,29 @@ HEADER = "O Processo — Franz Kafka"
 PAGES = [
     (
         f"{HEADER}\n"
-        "Edição de teste, tradução em domínio público.\n"
+        "Documento interno de teste.\n"
         "\n"
         "Capítulo I\n"
-        "Alguém caluniara Josef K., pois sem que tivesse feito mal algum, foi de-\n"
+        "Josef K. aguardava no escritório quando o inspec-\n"
         "1"
     ),
     (
         f"{HEADER}\n"
-        "tido certa manhã. A cozinheira da senhora Grubach não apareceu.\n"
+        "tor entrou sem avisar. A senhora Grubach observava da porta.\n"
         "\n"
-        "K. esperou ainda um momento no travesseiro.\n"
+        "K. esperou sentado à mesa.\n"
         "2"
     ),
     (
         f"{HEADER}\n"
         "Capítulo II\n"
-        "K. foi informado por telefone de que no domingo haveria um pe-\n"
-        "queno inquérito sobre o seu caso.\n"
+        "K. recebeu aviso de que na manhã seguinte haveria um pe-\n"
+        "queno interrogatório sobre o seu caso.\n"
         "3"
     ),
     (
         f"{HEADER}\n"
-        "O inquérito começou cedo.\n"
+        "O interrogatório começou cedo.\n"
         "4"
     ),
 ]
@@ -57,12 +57,12 @@ def test_header_and_page_numbers_removed(result):
 
 
 def test_hyphenation_joined_across_pages(result):
-    assert "foi detido certa manhã" in result.text
-    assert "de- tido" not in result.text and "de-tido" not in result.text
+    assert "inspetor entrou sem avisar" in result.text
+    assert "inspec- tor" not in result.text and "inspec-tor" not in result.text
 
 
 def test_hyphenation_joined_within_page(result):
-    assert "pequeno inquérito" in result.text
+    assert "pequeno interrogatório" in result.text
 
 
 def test_paragraph_offsets_reconstruct_exact_text(result):
@@ -111,7 +111,7 @@ def test_paragraphs_carry_id_and_source_id(result):
 
 def test_located_paragraph_contains_quote(result):
     """Critério do B04: o parágrafo devolvido contém o trecho citado."""
-    quote = "A cozinheira da senhora Grubach não apareceu."
+    quote = "A senhora Grubach observava da porta."
     offset = result.text.index(quote)
     p = result.paragraph_at(offset)
     assert quote in result.text[p.start_offset : p.end_offset]
@@ -126,18 +126,18 @@ def test_roman_numeral_heading_detected():
 
 def test_spaced_letters_heading_detected():
     """"C A P Í T U L O I" é título explícito mesmo com letras espaçadas."""
-    pages = ["C A P Í T U L O I\nAlguém caluniara Josef K."]
+    pages = ["C A P Í T U L O I\nJosef K. compareceu ao local."]
     r = build_ingest_result(pages, title="t", kind="pdf")
     assert r.quality.chapters_detected == 1
-    assert r.locate(r.text.index("Alguém")) == "cap. 1, § 1"
+    assert r.locate(r.text.index("Josef K. compareceu")) == "cap. 1, § 1"
 
 
 def test_explicit_headings_take_precedence_over_uppercase():
     """Folha de rosto e subtítulos em maiúsculas não numeram capítulos
     quando a obra tem títulos explícitos; a numeração começa na obra."""
     pages = [
-        "O PROCESSO\nFranz Kafka Editora Teste.",
-        "Capítulo I\nPRIMEIRO INTERROGATÓRIO\nAlguém caluniara Josef K.",
+        "O PROCESSO\nFranz Kafka, 1925.",
+        "Capítulo I\nA INVESTIGAÇÃO\nJosef K. compareceu ao local.",
         "Capítulo II\nO texto segue adiante.",
     ]
     r = build_ingest_result(pages, title="t", kind="pdf")
@@ -145,8 +145,8 @@ def test_explicit_headings_take_precedence_over_uppercase():
     assert [c.title for c in r.chapters] == ["Capítulo I", "Capítulo II"]
     # folha de rosto fica no preâmbulo; subtítulo vira texto do capítulo 1
     assert r.locate(r.text.index("O PROCESSO")) == "§ 1"
-    assert r.locate(r.text.index("PRIMEIRO INTERROGATÓRIO")) == "cap. 1, § 1"
-    assert r.locate(r.text.index("Alguém caluniara")) == "cap. 1, § 2"
+    assert r.locate(r.text.index("A INVESTIGAÇÃO")) == "cap. 1, § 1"
+    assert r.locate(r.text.index("Josef K. compareceu")) == "cap. 1, § 2"
     assert sum(
         "título em maiúsculas não numerado" in a for a in r.quality.alerts
     ) == 2
@@ -170,7 +170,7 @@ def test_alert_for_empty_chapter():
 
 
 def test_locate_preamble(result):
-    offset = result.text.index("Edição de teste")
+    offset = result.text.index("Documento interno")
     assert result.locate(offset) == "§ 1"
 
 
@@ -180,10 +180,10 @@ def test_locate_chapter_title(result):
 
 
 def test_locate_paragraphs(result):
-    assert result.locate(result.text.index("Alguém caluniara")) == "cap. 1, § 1"
-    assert result.locate(result.text.index("K. esperou")) == "cap. 1, § 2"
-    assert result.locate(result.text.index("K. foi informado")) == "cap. 2, § 1"
-    assert result.locate(result.text.index("O inquérito começou")) == "cap. 2, § 2"
+    assert result.locate(result.text.index("Josef K. aguardava")) == "cap. 1, § 1"
+    assert result.locate(result.text.index("K. esperou sentado")) == "cap. 1, § 2"
+    assert result.locate(result.text.index("K. recebeu aviso")) == "cap. 2, § 1"
+    assert result.locate(result.text.index("O interrogatório começou")) == "cap. 2, § 2"
 
 
 def test_locate_out_of_range_raises(result):
@@ -224,7 +224,7 @@ def test_alert_for_empty_page():
 def test_render_report_sections(result):
     report = render_report(result)
     assert "cap. 1 — Capítulo I" in report
-    assert "Alguém caluniara Josef K." in report  # primeira linha do capítulo
+    assert "Josef K. aguardava" in report  # first line of chapter
     assert "## Itens removidos por página" in report
     assert "cabecalho: O Processo — Franz Kafka" in report
     assert "## Alertas" in report

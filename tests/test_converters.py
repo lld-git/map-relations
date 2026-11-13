@@ -27,11 +27,11 @@ DOCLING_DOC = {
         {"label": "section_header", "text": "C A P Í T U L O I", "prov": [{"page_no": 1}]},
         {
             "label": "section_header",
-            "text": "Prisão. Conversa com a senhora Grubach",
+            "text": "A Visita. Conversa com a senhora Grubach",
             "prov": [{"page_no": 1}],
         },
-        {"label": "text", "text": "Alguém caluniara Josef K.", "prov": [{"page_no": 1}]},
-        {"label": "section_header", "text": "NA CATEDRAL", "prov": [{"page_no": 2}]},
+        {"label": "text", "text": "Josef K. entrou na sala.", "prov": [{"page_no": 1}]},
+        {"label": "section_header", "text": "NO ESCRITÓRIO", "prov": [{"page_no": 2}]},
         {"label": "text", "text": "K. foi até a catedral.", "prov": [{"page_no": 2}]},
     ],
 }
@@ -44,11 +44,11 @@ def test_docling_blocks_titles_subtitles_and_removed():
         ParagraphKind.titulo,      # C A P Í T U L O I (explícito via despace)
         ParagraphKind.subtitulo,   # section_header logo após o título
         ParagraphKind.texto,
-        ParagraphKind.texto,       # NA CATEDRAL: header não explícito, sem título antes
+        ParagraphKind.texto,       # NO ESCRITÓRIO: header não explícito, sem título antes
         ParagraphKind.texto,
     ]
     assert removed[0].reason is RemovalReason.cabecalho
-    assert any("NA CATEDRAL" in a for a in alerts)
+    assert any("NO ESCRITÓRIO" in a for a in alerts)
 
 
 def test_docling_blocks_feed_single_parser():
@@ -59,7 +59,7 @@ def test_docling_blocks_feed_single_parser():
     )
     assert r.quality.chapters_detected == 1
     assert r.locate(r.text.index("Prisão.")) == "cap. 1, subtítulo"
-    assert r.locate(r.text.index("Alguém")) == "cap. 1, § 1"
+    assert r.locate(r.text.index("Josef K. entrou")) == "cap. 1, § 1"
     assert r.paragraphs[0].page == 1
     assert r.paragraphs[-1].page == 2
 
@@ -79,7 +79,7 @@ def test_docling_uppercase_headers_number_when_no_explicit():
 
 def test_txt_blocks():
     blocks, removed, alerts = txt_to_blocks(
-        "Capítulo I\n\nAlguém caluniara Josef K.\n\nOutro parágrafo."
+        "Capítulo I\n\nJosef K. entrou na sala.\n\nOutro parágrafo."
     )
     assert blocks[0].kind is ParagraphKind.titulo
     assert len(blocks) == 3
@@ -97,10 +97,10 @@ def test_pandoc_md_to_blocks_headings_and_unescape():
 def test_pandoc_converts_html(tmp_path):
     html = tmp_path / "doc.html"
     html.write_text(
-        "<h1>Capítulo I</h1><p>Alguém caluniara Josef K.</p><p>Outro parágrafo.</p>",
+        "<h1>Capítulo I</h1><p>Josef K. entrou na sala.</p><p>Outro parágrafo.</p>",
         encoding="utf-8",
     )
     blocks, _, _ = convert_pandoc(html)
     assert blocks[0].kind is ParagraphKind.titulo
     assert blocks[0].text == "Capítulo I"
-    assert blocks[1].text == "Alguém caluniara Josef K."
+    assert blocks[1].text == "Josef K. entrou na sala."
