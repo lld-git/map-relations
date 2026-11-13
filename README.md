@@ -13,6 +13,49 @@ dependency required. The AI engine is pluggable (any OpenAI-compatible
 provider or local model). The end product runs almost entirely in the browser
 to keep fixed costs near zero. The TypeScript port happens only after C2.
 
+## About
+
+Map Relations turns long documents into an explorable relationship dossier:
+people, relations, timelines and notes, with every extracted relation linked to
+literal evidence in the source text. It is intended for commentators, content
+creators and researchers who need to explain connections and cite their sources.
+
+### Why it is hard
+Entity resolution, implicit relations, temporal context and false positives from
+LLMs. The approach is multi-pass extraction with deterministic checks, blind
+verification and a measured comparison against single-prompt baselines.
+
+### Current stage (research, in Python)
+Done:
+- Docker-first environment, CI, tests, type checking and a generated project map.
+- Generic domain model (people, groups, places, objects and events; claims,
+  participation, evidence and audit log), with stable keys for reprocessing and
+  a state machine that never lets automated runs overwrite human decisions.
+- Document ingestion with a single contract: PDF converted with Docling (page
+  ranges in separate processes, cached) or a lightweight fallback, normalized to
+  reviewable Markdown and then to a canonical text with character offsets,
+  paragraphs, chapters and a quality report.
+
+Next: evaluation harness with a hand-annotated gold set, model adapters, and the
+first extraction pipeline.
+
+### Roadmap
+- V1: one public-domain literary work; relations with literal evidence, explored
+  through a graph, timeline and report.
+- V2: events and how characters take part in them, incremental knowledge over the
+  story, user corrections and user-guided deeper extraction.
+- Later: newspapers and magazines, multiple sources over time, source tracking,
+  contradiction detection and safeguards for real people.
+
+### How I work with AI
+I define architecture, decisions (ADRs) and acceptance criteria. An AI coding
+assistant plans and implements one block at a time; I review plans, tests and
+results before moving on. Every block is documented in `docs/blocks/`.
+
+### Stack
+Python 3.12, uv, Pydantic, spaCy, Docling, NetworkX, pytest, ruff, mypy, Docker
+Compose. A browser version in TypeScript is planned after the method is validated.
+
 ## Requirements
 
 - Docker + Docker Compose ≥ 2.24 (for `env_file.path` and `env_file.required`)
