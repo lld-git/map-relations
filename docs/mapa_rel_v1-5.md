@@ -706,7 +706,7 @@ A ordem prova o valor antes de construir o produto inteiro: primeiro a extraçã
 | B02 | Gabarito de *O Alienista* e `eval` | B01 | Comando calcula precisão, recall e provas válidas |
 | B02b | Painel de testes: P0 e P1; P2 a P4 acompanham B05 a B08 | B02 | Execução fictícia aberta no painel, sem acesso a escrever o gabarito |
 | B03 | Adaptador OpenAI compatível e tarefas | B01 | Mistral e Haiku respondem no mesmo contrato |
-| B04 | Leitura de TXT e EPUB; segmentação | B01 | Posição de cada bloco volta ao texto exato |
+| B04 | Leitura de TXT e EPUB; segmentação | B01 | Posição de cada bloco volta ao texto exato; todo offset converte em "cap. X, § Y" |
 | B04b | DoclingParser, filtro de PDF e texto canônico | B04 | Comparação com pdf\_loader; trecho volta à página e ao texto exato |
 | B05 | Pipeline Python com spaCy e regras: N0, N1 e prova | B03, B04 | Capítulo processado, retomado e sem prova inválida |
 | B06 | Comparativo A/B/C e híbrido contra LLM | B02, B05 | Relatório fecha o checkpoint C1 |

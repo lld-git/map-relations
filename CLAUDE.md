@@ -116,6 +116,24 @@ Pronto quando: testes cobrem transições válidas e inválidas, a regra de que 
 humanos não mudam por execução automática, criação de um evento com participações
 e rejeição de claim com kind incompatível.
 
+### B04 (antecipado antes do B02): contrato de ingestão e mapa de parágrafos
+Implementar IngestResult: texto canônico NFC, parágrafos, capítulos,
+itens removidos e QualityReport. Adaptar o pdf_loader ao contrato.
+DocumentParser retorna IngestResult.
+Gerar o mapa de parágrafos do texto canônico NFC:
+paragraph: id, sourceId, chapter, number, startOffset, endOffset
+- number reinicia em 1 a cada capítulo.
+- Parágrafo = trecho separado por linha em branco no texto canônico.
+- Função locate(offset) -> "cap. X, § Y", usada no Leitor e na citação copiada
+  (título → "cap. X, título"; preâmbulo → "§ Y").
+A referência legível é sempre derivada do offset e nunca usada para verificar provas.
+Relatório de revisão humana em data/processed/<hash>/ com capítulos
+detectados, primeiras linhas, itens removidos por página e alertas —
+nada disso vai para o Git.
+Leitura de TXT e EPUB fica para a conclusão do B04; Docling é B04b.
+Pronto quando: todo offset do gabarito converte em capítulo e parágrafo, e o
+parágrafo devolvido contém o trecho citado.
+
 ### B02: avaliação
 Criar eval/gold/processo.json com capítulos, relações e apelidos.
 O arquivo começa com exemplos marcados como fictícios; o humano preencherá o gabarito.

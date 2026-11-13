@@ -13,7 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from research.map_relations.core.models import Source
+from research.map_relations.core.ingest_contract import IngestResult
 
 
 class _Base(BaseModel):
@@ -107,9 +107,10 @@ class SourceConnector(Protocol):
 
 @runtime_checkable
 class DocumentParser(Protocol):
-    """Converte um documento bruto em (Source, texto NFC normalizado)."""
+    """Converte um documento bruto num IngestResult (texto canônico NFC,
+    parágrafos, capítulos, itens removidos e QualityReport)."""
 
-    def parse(self, path: Path) -> tuple[Source, str]: ...
+    def parse(self, path: Path) -> IngestResult: ...
 
 
 @runtime_checkable
