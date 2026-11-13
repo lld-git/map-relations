@@ -4,7 +4,7 @@
 COMPOSE = docker compose
 RUN = $(COMPOSE) run --rm app
 
-.PHONY: test lint typecheck schema-check check ingest map shell
+.PHONY: test lint typecheck schema-check check ingest map shell docling compare compare-all
 
 test:
 	$(RUN) uv run pytest
@@ -47,3 +47,25 @@ map:
 
 shell:
 	$(RUN) bash
+
+# Converte um PDF com o Docling (serviço pesado, profile docling; sem OCR —
+# os PDFs do conjunto têm camada de texto). Saída: data/docling/<nome>.json
+# --page-batch-size 1 limita o pico de memória (VM do Docker Desktop: ~4 GiB).
+docling:
+ifndef PDF
+	$(error uso: make docling PDF=<arquivo em data/raw>)
+endif
+	$(COMPOSE) --profile docling run --rm docling \
+		docling /data/raw/$(notdir $(PDF)) --to json --no-ocr \
+		--page-batch-size 1 --output /data/docling
+
+# Compara pdf_loader × Docling; grava data/processed/<hash>/comparacao_docling.md
+compare: docling
+	$(RUN) python -m map_relations compare /app/data/raw/$(notdir $(PDF))
+
+# Roda a comparação para todos os PDFs listados em eval/pdfs/conjunto.txt
+compare-all:
+	@grep -vE '^\s*(#|$$)' eval/pdfs/conjunto.txt | while read -r pdf; do \
+		echo "== $$pdf =="; \
+		$(MAKE) --no-print-directory compare PDF=$$pdf || exit 1; \
+	done

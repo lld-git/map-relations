@@ -19,6 +19,7 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/ingest/pdf_loader.py | load_pdf + PdfParser (DocumentParser) | \_\_main\_\_; tests/test_ingest_contract | ativo |
 | research/map_relations/ingest/url_loader.py | load_url — ainda no formato antigo (Source, str) | ninguém | morto? (aguarda migração ao contrato no resto do B04) |
 | research/map_relations/ingest/report.py | write_processed: data/processed/\<hash\>/ | \_\_main\_\_; tests/test_ingest_contract | ativo |
+| research/map_relations/ingest/docling_compare.py | relatório pdf_loader × Docling (prova B04b) | \_\_main\_\_; tests/test_docling_compare | ativo |
 | research/map_relations/nlp/ner.py | extract_mentions e unique_names com spaCy | tests/test_nlp | só teste (entra no pipeline em B05) |
 | research/map_relations/\*/\_\_init\_\_.py (11 arquivos) | marcadores de pacote, vazios | — | ativo |
 | scripts/generate_schemas.py | gera/verifica JSON Schemas em contracts/schemas | tests/test_contracts; CI (`--check`) | só script (e CI) |
@@ -26,6 +27,7 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | docs/mapa/vulture_whitelist.py | whitelist do vulture (não é código do projeto) | make map | só script |
 | tests/test_cli.py | caminhos de erro da CLI | — | teste |
 | tests/test_contracts.py | Protocols e coerência dos schemas | — | teste |
+| tests/test_docling_compare.py | relatório de comparação com JSON sintético | — | teste |
 | tests/test_core_models.py | validadores, chaves, serialização camelCase | — | teste |
 | tests/test_eval_runs.py | permissão de escrita em eval/runs (ADR 002) | — | teste |
 | tests/test_ingest.py | Source e compute_text_hash | — | teste |

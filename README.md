@@ -43,6 +43,9 @@ Todos os alvos rodam dentro do contêiner via `docker compose`.
 | `make ingest PDF=<arquivo>` | converte um PDF de `data/raw/` em `data/processed/<hash>/` |
 | `make map` | gera `docs/mapa/imports.svg` (pydeps) e `docs/mapa/codigo_morto.txt` (vulture) |
 | `make shell` | shell bash dentro do contêiner |
+| `make docling PDF=<arquivo>` | converte o PDF com o Docling (imagem pesada, profile docling) |
+| `make compare PDF=<arquivo>` | compara pdf_loader × Docling → `comparacao_docling.md` |
+| `make compare-all` | compara todos os PDFs listados em `eval/pdfs/conjunto.txt` |
 
 Exemplo de ingestão:
 

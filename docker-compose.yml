@@ -39,8 +39,13 @@ services:
         required: false
 
   docling:
-    # Placeholder — DoclingParser para conversão de PDF (implementar em B04b)
-    image: busybox
-    command: ["echo", "docling service: implementar em B04b"]
+    # Conversão estruturada de PDF (prova do B04b). Imagem pesada: só sobe
+    # com --profile docling; nunca no CI.
+    build:
+      context: .
+      dockerfile: docker/docling/Dockerfile
+    user: "0:0"
+    volumes:
+      - ./data:/data
     profiles:
       - docling

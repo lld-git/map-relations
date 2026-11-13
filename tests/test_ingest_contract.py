@@ -124,6 +124,48 @@ def test_roman_numeral_heading_detected():
     assert r.chapters[0].title == "II"
 
 
+def test_spaced_letters_heading_detected():
+    """"C A P Í T U L O I" é título explícito mesmo com letras espaçadas."""
+    pages = ["C A P Í T U L O I\nAlguém caluniara Josef K."]
+    r = build_ingest_result(pages, title="t", kind="pdf")
+    assert r.quality.chapters_detected == 1
+    assert r.locate(r.text.index("Alguém")) == "cap. 1, § 1"
+
+
+def test_explicit_headings_take_precedence_over_uppercase():
+    """Folha de rosto e subtítulos em maiúsculas não numeram capítulos
+    quando a obra tem títulos explícitos; a numeração começa na obra."""
+    pages = [
+        "O PROCESSO\nFranz Kafka Editora Teste.",
+        "Capítulo I\nPRIMEIRO INTERROGATÓRIO\nAlguém caluniara Josef K.",
+        "Capítulo II\nO texto segue adiante.",
+    ]
+    r = build_ingest_result(pages, title="t", kind="pdf")
+    assert r.quality.chapters_detected == 2
+    assert [c.title for c in r.chapters] == ["Capítulo I", "Capítulo II"]
+    # folha de rosto fica no preâmbulo; subtítulo vira texto do capítulo 1
+    assert r.locate(r.text.index("O PROCESSO")) == "§ 1"
+    assert r.locate(r.text.index("PRIMEIRO INTERROGATÓRIO")) == "cap. 1, § 1"
+    assert r.locate(r.text.index("Alguém caluniara")) == "cap. 1, § 2"
+    assert sum(
+        "título em maiúsculas não numerado" in a for a in r.quality.alerts
+    ) == 2
+
+
+def test_uppercase_headings_number_chapters_when_no_explicit():
+    """Sem títulos explícitos, a regra de maiúsculas numera — com alerta."""
+    pages = ["A PARTIDA\nUm texto.\n\nA CHEGADA\nOutro texto."]
+    r = build_ingest_result(pages, title="t", kind="txt")
+    assert r.quality.chapters_detected == 2
+    assert any("apenas pela regra de maiúsculas" in a for a in r.quality.alerts)
+
+
+def test_alert_for_empty_chapter():
+    pages = ["Capítulo I\nTem texto aqui.\n\nCapítulo II\n\nCapítulo III\nMais texto."]
+    r = build_ingest_result(pages, title="t", kind="txt")
+    assert "capítulo 2 sem parágrafos de texto" in r.quality.alerts
+
+
 # ── locate ────────────────────────────────────────────────────────────────────
 
 

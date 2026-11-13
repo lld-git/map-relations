@@ -29,21 +29,50 @@ _REPEAT_THRESHOLD = 0.6
 
 _PAGE_NUMBER_RE = re.compile(r"^[\s\-–—]*\d{1,4}[\s\-–—]*$")
 
+# Padrões explícitos de capítulo (com e sem espaçamento entre letras).
 _CHAPTER_RES = [
     re.compile(r"^cap[íi]tulo\s+\S+", re.IGNORECASE),
     re.compile(r"^[IVXLCDM]{1,7}\.?$"),
 ]
+# Versões sobre o texto sem espaços ("C A P Í T U L O I" → "capítuloi").
+_CHAPTER_DESPACED_RES = [
+    re.compile(r"^cap[íi]tulo", re.IGNORECASE),
+    re.compile(r"^[IVXLCDM]{1,7}\.?$", re.IGNORECASE),
+]
 
 
-def _is_chapter_heading(line: str) -> bool:
+def _despace(line: str) -> str:
+    """Remove espaçamento tipográfico entre letras, para detecção apenas.
+    Só age quando a maioria dos tokens é de um caractere (letras espaçadas)."""
+    tokens = line.split()
+    if len(tokens) >= 4 and sum(len(t) == 1 for t in tokens) / len(tokens) >= 0.7:
+        return "".join(tokens)
+    return line
+
+
+def _is_explicit_heading(line: str) -> bool:
+    """Título que casa um padrão explícito de capítulo (Capítulo N, romanos),
+    inclusive com letras espaçadas."""
     line = line.strip()
     if not line or len(line) > 60:
         return False
     if any(rx.match(line) for rx in _CHAPTER_RES):
         return True
-    # linha curta toda em maiúsculas com pelo menos uma letra
+    despaced = _despace(line)
+    return despaced != line and any(rx.match(despaced) for rx in _CHAPTER_DESPACED_RES)
+
+
+def _is_uppercase_heading(line: str) -> bool:
+    """Linha curta toda em maiúsculas — candidata a título, menos confiável."""
+    line = line.strip()
+    if not line or len(line) > 60:
+        return False
     letters = [c for c in line if c.isalpha()]
     return bool(letters) and all(c.isupper() for c in letters) and len(line) >= 3
+
+
+def _is_chapter_heading(line: str) -> bool:
+    return _is_explicit_heading(line) or _is_uppercase_heading(line)
 
 
 def _normalize_line(line: str) -> str:
@@ -160,6 +189,28 @@ def build_ingest_result(raw_pages: list[str], title: str, kind: str) -> IngestRe
     text = "\n\n".join(blocks)
     source = Source(title=title, kind=kind, content_hash=compute_text_hash(text))
 
+    # Precedência de títulos: se a obra tem títulos explícitos (Capítulo N,
+    # romanos), só eles numeram capítulos — folha de rosto, sumário e
+    # subtítulos em maiúsculas viram parágrafos de texto, com alerta.
+    # Sem nenhum título explícito, a regra de maiúsculas numera, com alerta.
+    explicit = [_is_explicit_heading(b) for b in blocks]
+    upper_only = [
+        _is_uppercase_heading(b) and not e for b, e in zip(blocks, explicit)
+    ]
+    if any(explicit):
+        is_heading = explicit
+        for block, up in zip(blocks, upper_only):
+            if up:
+                alerts.append(
+                    f'título em maiúsculas não numerado como capítulo: "{block[:60]}"'
+                )
+    else:
+        is_heading = [e or u for e, u in zip(explicit, upper_only)]
+        if any(upper_only):
+            alerts.append(
+                "capítulos detectados apenas pela regra de maiúsculas — confirmar na revisão"
+            )
+
     paragraphs: list[Paragraph] = []
     chapters: list[ChapterSpan] = []
     offset = 0
@@ -170,7 +221,7 @@ def build_ingest_result(raw_pages: list[str], title: str, kind: str) -> IngestRe
         if i > 0:
             offset += 2  # separador "\n\n"
         start, end = offset, offset + len(block)
-        if _is_chapter_heading(block):
+        if is_heading[i]:
             if chapters:
                 chapters[-1] = chapters[-1].model_copy(update={"end_offset": start})
             chapter = len(chapters) + 1
@@ -207,6 +258,13 @@ def build_ingest_result(raw_pages: list[str], title: str, kind: str) -> IngestRe
         alerts.append("nenhum capítulo detectado")
     if not text:
         alerts.append("texto canônico vazio")
+
+    texto_por_capitulo = Counter(
+        p.chapter for p in paragraphs if p.kind is ParagraphKind.texto
+    )
+    for ch in chapters:
+        if texto_por_capitulo.get(ch.index, 0) == 0:
+            alerts.append(f"capítulo {ch.index} sem parágrafos de texto")
 
     reason_counts = Counter(item.reason.value for item in removed)
     quality = QualityReport(

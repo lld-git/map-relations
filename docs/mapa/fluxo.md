@@ -1,7 +1,7 @@
 # Fluxo de dados — único diagrama de fluxo do projeto
 
-Atualizado em 2026-11-11, após o B04 antecipado. Linhas cheias = confirmado no
-código (cada seta cita arquivo.py:função). Linhas tracejadas = planejado.
+Atualizado em 2026-11-12, após a prova do Docling (B04b-prova). Linhas cheias =
+confirmado no código (cada seta cita arquivo.py:função). Tracejado = planejado.
 
 ```mermaid
 flowchart TB
@@ -18,14 +18,21 @@ flowchart TB
     BUILD -->|"canonical.py:_clean_pages, _join_pages, _split_paragraph_blocks; ids.py:nfc; document.py:compute_text_hash"| RESULT
     RESULT -->|"__main__.py:cmd_ingest → report.py:write_processed"| OUT
 
+    DOCJSON["data/docling/&lt;nome&gt;.json"]
+    COMPARE["comparacao_docling.md<br/>em data/processed/&lt;hash&gt;/"]
+
+    PDF -->|"make docling (serviço docling, CLI docling --to json)"| DOCJSON
+    DOCJSON -->|"__main__.py:cmd_compare → docling_compare.py:compare"| COMPARE
+    RESULT -->|"__main__.py:cmd_compare"| COMPARE
+
     URL["URL / TXT / EPUB"]
-    DOCLING["serviço docling (B04b)"]
+    DOCLINGPARSER["DoclingParser (B04b)"]
     SEG["segmentação + N0/N1 (B05)"]
     EVAL["eval contra gabarito (B02)"]
 
     URL -.->|"planejado: migrar url_loader.py:load_url ao contrato; TXT/EPUB no resto do B04"| BUILD
-    PDF -.->|"planejado: DoclingParser (B04b)"| DOCLING
-    DOCLING -.->|"planejado"| RESULT
+    DOCJSON -.->|"planejado: DoclingParser → IngestResult (B04b)"| DOCLINGPARSER
+    DOCLINGPARSER -.->|"planejado"| RESULT
     RESULT -.->|"planejado: pipeline spaCy + regras (B05)"| SEG
     RESULT -.->|"planejado: offsets do gabarito usam o texto canônico (B02)"| EVAL
 ```

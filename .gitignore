@@ -14,5 +14,6 @@ eval/runs/*/mentions.jsonl
 eval/reports/junit.xml
 data/raw/
 data/processed/
+data/docling/
 docs/old/*.pdf
 docs/*.pdf

@@ -97,6 +97,21 @@ hatchling; venv precisa estar no PATH da imagem para `python -m` funcionar sem
 para site-packages; config montada no contêiner evita rebuild a cada ajuste
 de ruff/mypy/pytest.
 
+## B04b-prova — Correções genéricas e prova do Docling (concluído em 2026-11-12)
+
+**Objetivo:** corrigir de forma genérica os problemas vistos no O Processo
+(letras espaçadas, numeração fora da obra, capítulos vazios) e medir o Docling
+contra o pdf_loader no mesmo PDF antes de decidir o B04b.
+
+**Métricas:** (preencher após a primeira rodada de make compare-all)
+
+**Observações:** títulos explícitos têm precedência sobre a regra de
+maiúsculas; sem nenhum explícito, maiúsculas numeram com alerta. Nenhuma regra
+específica de livro.
+
+**Aprendizados:** a regra de maiúsculas sozinha transforma folha de rosto,
+sinopse e subtítulos em capítulos; precedência resolve sem lista de exceções.
+
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 
 Fecha com o relatório do B06: regras vs. LLM vs. híbrido contra o gabarito.

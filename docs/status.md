@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-11
+# Status — atualizado em 2026-11-12
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -25,6 +25,11 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - **B04-pkg** — map_relations instalável (hatchling): imports `map_relations.*`,
   sem PYTHONPATH; editável na dev, não editável na prod; CI com cache GHA.
   Relatório: [docs/blocks/B04-pkg.md](blocks/B04-pkg.md). ADR 007.
+- **B04b-prova** — correções genéricas no canônico (letras espaçadas,
+  precedência de títulos explícitos, alertas de capítulo vazio e de regra de
+  maiúsculas); serviço docling real + `make compare` / `make compare-all` com
+  relatório pdf_loader × Docling; eval/pdfs/ preparado para 3–5 PDFs do Leon.
+  Relatório: [docs/blocks/B04b-prova.md](blocks/B04b-prova.md).
 
 ## Em andamento
 
@@ -32,7 +37,11 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Pendências
 
-- Revisão humana dos blocos B04 e B04-docs (docs/blocks/).
+- Leon: adicionar 3–5 PDFs de diagramação variada em data/raw/ e listá-los em
+  eval/pdfs/conjunto.txt; depois `make compare-all`.
+- Subtítulo em caixa mista grudado no primeiro parágrafo (ex.: "Prisão.
+  Conversa…"): sem solução genérica no pdf_loader; avaliar com o Docling (B04b).
+- Revisão humana dos blocos B04, B04-docs, B04-pkg e B04b-prova (docs/blocks/).
 - Criar repositório remoto no GitHub (map-relations) — aguardando a conta do Leon.
 - Resto do B04: leitura de TXT e EPUB; migrar url_loader ao contrato
   IngestResult (hoje é o único candidato real em codigo_morto.txt).

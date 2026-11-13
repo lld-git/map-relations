@@ -1,0 +1,7 @@
+# Conjunto de 3 a 5 PDFs de diagramação variada (arquivos em data/raw/).
+# Um nome de arquivo por linha; linhas com # são ignoradas.
+# Exercita: romance com capítulos, letras espaçadas nos títulos, sinopse e folha de rosto
+o_processo.pdf
+# Adicionar (Leon): notícia em colunas
+# Adicionar (Leon): relatório/documento com tabelas e notas de rodapé
+# Adicionar (Leon): livro com sumário extenso
