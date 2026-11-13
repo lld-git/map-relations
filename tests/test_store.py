@@ -20,9 +20,24 @@ def test_source_json_and_paths(tmp_path):
     store.write_source_json("abc123", file_name="livro.pdf", kind="pdf")
     data = json.loads((tmp_path / "processed/abc123/source.json").read_text())
     assert data == {"file": "livro.pdf", "kind": "pdf", "sha256": "abc123"}
-    assert store.docling_cache("abc123") == (
-        tmp_path / "processed/abc123/docling" / DOCLING_CACHE_KEY / "docling.json"
+    assert store.docling_cache_dir("abc123") == (
+        tmp_path / "processed/abc123/docling" / DOCLING_CACHE_KEY
     )
+
+
+def test_docling_range_files_sorted_by_page(tmp_path):
+    store = ProcessedStore(tmp_path / "processed")
+    assert store.docling_range_files("h") == []
+    for start, end in [(41, 80), (1, 40), (81, 90)]:
+        p = store.docling_range(start=start, end=end, source_hash="h")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("{}")
+    files = store.docling_range_files("h")
+    assert [f.name for f in files] == [
+        "pages_0001-0040.json",
+        "pages_0041-0080.json",
+        "pages_0081-0090.json",
+    ]
 
 
 def test_orphans_detected_but_not_deleted(tmp_path):

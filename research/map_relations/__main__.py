@@ -22,12 +22,12 @@ from pathlib import Path
 from map_relations.core.ingest_contract import IngestResult, RemovedItem
 from map_relations.ingest.alerts import ConversionAlert, classify_conversion_alerts
 from map_relations.ingest.canonical import build_ingest_result, pdf_pages_to_blocks
-from map_relations.ingest.convert_docling import docling_to_blocks
+from map_relations.ingest.convert_docling import merge_range_docs
 from map_relations.ingest.convert_pandoc import convert_pandoc
 from map_relations.ingest.convert_txt import txt_to_blocks
 from map_relations.ingest.docling_compare import compare, load_docling_json
 from map_relations.ingest.markdown import md_hash, parse_markdown, render_markdown
-from map_relations.ingest.pdf_loader import extract_pages
+from map_relations.ingest.pdf_loader import extract_pages, page_count, page_ranges
 from map_relations.ingest.report import render_report
 from map_relations.ingest.store import ProcessedStore, file_hash
 
@@ -65,15 +65,24 @@ def _generate_md(store: ProcessedStore, path: Path, source_hash: str, kind: str,
     """Gera documento.md + conversao.json pela rota adequada. Retorna exit code."""
     out_dir = store.dir_for(source_hash)
     if kind == "pdf" and route == "docling":
-        cache = store.docling_cache(source_hash)
-        if not cache.is_file():
+        range_files = store.docling_range_files(source_hash)
+        if not range_files:
             print(
-                f"cache do Docling ausente: {cache}\n"
+                f"cache do Docling ausente em {store.docling_cache_dir(source_hash)}\n"
                 f"rode: make docling PDF={path.name} (ou use --route pdf_loader)",
                 file=sys.stderr,
             )
             return 3
-        blocks, removed, alerts, _ = docling_to_blocks(load_docling_json(cache))
+        docs = [load_docling_json(f) for f in range_files]
+        blocks, removed, alerts, covered = merge_range_docs(docs)
+        total = page_count(path)
+        if covered != total:
+            print(
+                f"cache incompleto: {covered} de {total} páginas convertidas\n"
+                f"rode: make docling PDF={path.name}",
+                file=sys.stderr,
+            )
+            return 3
     elif kind == "pdf":  # route == "pdf_loader"
         raw_pages = extract_pages(path)
         raw_dir = out_dir / "pdf_loader"
@@ -193,8 +202,18 @@ def cmd_prepare(name: str) -> int:
     source_hash = file_hash(path)
     store = ProcessedStore(PROCESSED_DIR)
     store.write_source_json(source_hash, file_name=path.name, kind=_kind(path) or "?")
-    cache_dir = store.docling_cache(source_hash).parent
-    print(cache_dir.relative_to(ROOT))
+    print(store.docling_cache_dir(source_hash).relative_to(ROOT))
+    return 0
+
+
+def cmd_docling_ranges(name: str, size: int) -> int:
+    """Imprime as faixas de página a converter (ex.: '1-40 41-80') — usado pelo
+    Makefile para fatiar a conversão do Docling em processos separados."""
+    path = _resolve_raw(name)
+    if path is None:
+        return 2
+    ranges = page_ranges(page_count(path), size)
+    print(" ".join(f"{s}-{e}" for s, e in ranges))
     return 0
 
 
@@ -204,16 +223,20 @@ def cmd_compare(name: str) -> int:
         return 2
     source_hash = file_hash(path)
     store = ProcessedStore(PROCESSED_DIR)
-    cache = store.docling_cache(source_hash)
-    if not cache.is_file():
+    range_files = store.docling_range_files(source_hash)
+    if not range_files:
         print(
-            f"cache do Docling ausente: {cache}\nrode antes: make docling PDF={path.name}",
+            f"cache do Docling ausente em {store.docling_cache_dir(source_hash)}\n"
+            f"rode antes: make docling PDF={path.name}",
             file=sys.stderr,
         )
         return 3
     try:
         result = build_ingest_result(extract_pages(path), title=path.stem, kind="pdf")
-        report = compare(result, load_docling_json(cache))
+        # compare só lê o array texts (label/text/prov); concatenar basta,
+        # as páginas já são absolutas em cada faixa
+        texts = [t for f in range_files for t in load_docling_json(f).get("texts", [])]
+        report = compare(result, {"texts": texts})
         out = store.dir_for(source_hash) / "comparacao_docling.md"
         out.write_text(report, encoding="utf-8")
     except Exception as exc:  # noqa: BLE001
@@ -268,6 +291,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_prepare.add_argument("arquivo")
 
+    p_ranges = sub.add_parser(
+        "docling-ranges", help="imprime as faixas de página a converter (uso do Makefile)"
+    )
+    p_ranges.add_argument("arquivo")
+    p_ranges.add_argument("--size", type=int, default=40, help="páginas por faixa")
+
     p_compare = sub.add_parser(
         "compare", help="compara pdf_loader × Docling (requer make docling antes)"
     )
@@ -281,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_ingest(args.arquivo, args.route, args.force_md)
     if args.command == "prepare":
         return cmd_prepare(args.arquivo)
+    if args.command == "docling-ranges":
+        return cmd_docling_ranges(args.arquivo, args.size)
     if args.command == "compare":
         return cmd_compare(args.arquivo)
     if args.command == "clean":

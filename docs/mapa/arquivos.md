@@ -17,7 +17,8 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/ingest/document.py | compute_text_hash; re-exporta Source | ingest/markdown, ingest/url_loader; tests/test_ingest | ativo |
 | research/map_relations/ingest/markdown.py | convenção do .md, escape, render e parser único (ADR 008) | canonical, convert_*, \_\_main\_\_; tests/test_markdown | ativo |
 | research/map_relations/ingest/canonical.py | rota pdf_loader: limpeza de páginas, precedência de títulos, blocos | pdf_loader, convert_docling, convert_txt, convert_pandoc, \_\_main\_\_ | ativo |
-| research/map_relations/ingest/convert_docling.py | docling.json → MdBlocks (títulos, subtítulos, removidos) | \_\_main\_\_; tests/test_converters | ativo |
+| research/map_relations/ingest/convert_docling.py | docling.json → MdBlocks; merge_range_docs junta faixas na fronteira | \_\_main\_\_; tests/test_converters, test_docling_ranges | ativo |
+| research/map_relations/ingest/alerts.py | resolve alertas da conversão sobre o .md atual | report, \_\_main\_\_; tests/test_alerts | ativo |
 | research/map_relations/ingest/convert_txt.py | TXT → MdBlocks | \_\_main\_\_; tests/test_converters | ativo |
 | research/map_relations/ingest/convert_pandoc.py | EPUB/DOCX/HTML → MdBlocks via pandoc (experimental) | \_\_main\_\_; tests/test_converters | ativo |
 | research/map_relations/ingest/store.py | layout processed/\<hash\>/, chave de cache Docling, órfãs | \_\_main\_\_; tests/test_store | ativo |
@@ -35,7 +36,9 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | tests/test_docling_compare.py | relatório de comparação com JSON sintético | — | teste |
 | tests/test_markdown.py | parser único: convenção, escape, páginas, subtítulo | — | teste |
 | tests/test_converters.py | conversores Docling/TXT/pandoc → MdBlocks | — | teste |
-| tests/test_store.py | layout processed/, hash de arquivo, órfãs | — | teste |
+| tests/test_store.py | layout processed/, hash de arquivo, órfãs, cache por faixa | — | teste |
+| tests/test_alerts.py | resolução de alertas da conversão sobre o .md atual | — | teste |
+| tests/test_docling_ranges.py | junção de faixas, parágrafo cortado na fronteira | — | teste |
 | tests/test_core_models.py | validadores, chaves, serialização camelCase | — | teste |
 | tests/test_eval_runs.py | permissão de escrita em eval/runs (ADR 002) | — | teste |
 | tests/test_ingest.py | Source e compute_text_hash | — | teste |

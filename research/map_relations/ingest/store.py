@@ -41,8 +41,18 @@ class ProcessedStore:
     def dir_for(self, source_hash: str) -> Path:
         return self.processed_dir / source_hash
 
-    def docling_cache(self, source_hash: str) -> Path:
-        return self.dir_for(source_hash) / "docling" / DOCLING_CACHE_KEY / "docling.json"
+    def docling_cache_dir(self, source_hash: str) -> Path:
+        """Pasta do cache do Docling para a versão+opções correntes.
+        Contém um pages_XXXX-YYYY.json por faixa (B04c)."""
+        return self.dir_for(source_hash) / "docling" / DOCLING_CACHE_KEY
+
+    def docling_range(self, source_hash: str, start: int, end: int) -> Path:
+        return self.docling_cache_dir(source_hash) / f"pages_{start:04d}-{end:04d}.json"
+
+    def docling_range_files(self, source_hash: str) -> list[Path]:
+        """Faixas já convertidas, em ordem de página."""
+        d = self.docling_cache_dir(source_hash)
+        return sorted(d.glob("pages_*.json")) if d.is_dir() else []
 
     def documento_md(self, source_hash: str) -> Path:
         return self.dir_for(source_hash) / "documento.md"

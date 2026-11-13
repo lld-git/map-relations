@@ -59,22 +59,31 @@ map:
 shell:
 	$(RUN) bash
 
-# Converte um PDF com o Docling para o cache (ADR 008 §4):
-# data/processed/<hash>/docling/<versão>-<opções>/docling.json
-# Pula se o cache já existe. Imagem pesada: profile docling, nunca no CI.
+# Converte um PDF com o Docling para o cache (ADR 008 §4), por faixas de
+# páginas (RANGE, padrão 40). Cada faixa é um processo separado — a memória é
+# liberada entre faixas, então o livro inteiro cabe na VM sem aumentá-la.
+# Cada faixa vira pages_XXXX-YYYY.json; a junção é feita no ingest (nível dos
+# MdBlocks, com página absoluta). Pula faixas já convertidas.
+RANGE = 40
 docling:
 ifndef PDF
 	$(error uso: make docling PDF=<arquivo em data/raw>)
 endif
-	@dir=$$($(COMPOSE) run --rm -T app python -m map_relations prepare /app/data/raw/$(name)) && \
-	if [ -f "$$dir/docling.json" ]; then \
-		echo "cache ok: $$dir/docling.json"; \
-	else \
-		mkdir -p "$$dir" && \
+	@dir=$$($(COMPOSE) run --rm -T app python -m map_relations prepare /app/data/raw/$(name)); \
+	ranges=$$($(COMPOSE) run --rm -T app python -m map_relations docling-ranges /app/data/raw/$(name) --size $(RANGE)); \
+	mkdir -p "$$dir"; \
+	for r in $$ranges; do \
+		s=$$(printf '%04d' $${r%-*}); e=$$(printf '%04d' $${r#*-}); \
+		out="$$dir/pages_$$s-$$e.json"; \
+		if [ -f "$$out" ]; then echo "faixa $$r: cache ok"; continue; fi; \
+		echo "== faixa $$r =="; \
 		$(COMPOSE) --profile docling run --rm docling sh -c \
-			"docling convert /data/raw/$(name) --to json $(DOCLING_FLAGS) --output /$$dir \
-			 && mv /$$dir/$(stem).json /$$dir/docling.json"; \
-	fi
+			"/usr/bin/time -v docling convert /data/raw/$(name) --to json $(DOCLING_FLAGS) \
+			 --page-range $$r --output /$$dir 2> /$$dir/time-$$r.txt; \
+			 mv /$$dir/$(stem).json /$$dir/pages_$$s-$$e.json; \
+			 grep 'Maximum resident set size' /$$dir/time-$$r.txt"; \
+		rm -f "$$dir/time-$$r.txt"; \
+	done
 
 # Compara pdf_loader × Docling; grava data/processed/<hash>/comparacao_docling.md
 compare: docling

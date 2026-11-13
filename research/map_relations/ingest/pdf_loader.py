@@ -19,6 +19,18 @@ def extract_pages(path: str | Path) -> list[str]:
     return [page.extract_text() or "" for page in reader.pages]
 
 
+def page_count(path: str | Path) -> int:
+    """Número de páginas do PDF (para fatiar a conversão do Docling)."""
+    return len(PdfReader(Path(path)).pages)
+
+
+def page_ranges(total: int, size: int) -> list[tuple[int, int]]:
+    """Faixas 1-based de até `size` páginas cobrindo [1, total]."""
+    if total <= 0 or size <= 0:
+        return []
+    return [(s, min(s + size - 1, total)) for s in range(1, total + 1, size)]
+
+
 def load_pdf(path: str | Path) -> IngestResult:
     """Extrai texto de um PDF e monta o IngestResult.
 

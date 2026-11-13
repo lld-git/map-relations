@@ -48,21 +48,40 @@ para a revisão apontar de volta ao .md.
 
 ### 4. Cache do Docling
 
-- O Docling roda **uma vez por documento** e grava docling.json.
+- O Docling roda **uma vez por documento** e grava o cache.
 - Chave de cache: hash do PDF + versão do Docling + opções de conversão.
-- documento.md é **sempre** gerado a partir do docling.json, nunca do PDF.
+- documento.md é **sempre** gerado a partir do cache, nunca do PDF.
 - Para PDF com camada de texto: OCR, tabelas e imagens **desligados**.
-- Medição (fatia de 40 páginas, `/usr/bin/time -v`, Docling 2.150.0, CPU,
-  VM de 3,7 GiB — 2026-11-12):
+- Medição das opções (fatia de 40 páginas, `/usr/bin/time -v`, Docling 2.150.0,
+  CPU, VM de 3,7 GiB — 2026-11-12):
 
   | Configuração | Tempo | Pico de memória |
   |---|---|---|
   | padrão (OCR + tabelas, batch 4) | 84,4 s | 3,05 GiB |
   | `--no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1` | 64,2 s | 2,32 GiB |
 
-  −24% de tempo e −22% de memória. O pico de ~3 GiB do modo padrão explica o
-  OOM do livro inteiro (379 p.) na VM de 3,7 GiB; mesmo com as opções, o livro
-  inteiro ainda exige a VM com mais memória (pendência do Leon).
+  −24% de tempo e −22% de memória.
+
+#### Conversão por faixas (B04c)
+
+O pico de memória cresce com o número de páginas do processo; com o livro
+inteiro (379 p.) estourava a VM de 3,7 GiB. Solução: converter em **faixas de
+páginas** (padrão 40), cada faixa num **processo separado** — a memória é
+liberada entre faixas, então o pico fica limitado ao tamanho da faixa e o livro
+inteiro cabe na VM sem aumentá-la.
+
+- Cada faixa grava `pages_XXXX-YYYY.json` no diretório do cache; faixas já
+  convertidas são puladas.
+- `DoclingDocument.concatenate` **renumera as páginas** (perde a página
+  absoluta), então **não** é usado. A junção é feita no nível dos blocos do
+  Markdown (`convert_docling.merge_range_docs`), com página absoluta.
+- Na fronteira entre faixas aplica-se a mesma regra de parágrafo que atravessa
+  página do pdf_loader: hífen final une a palavra; sem pontuação final + início
+  minúsculo une o parágrafo cortado.
+- A classificação de títulos (precedência explícito > maiúsculas) roda **depois**
+  da junção, sobre o documento inteiro — um capítulo explícito numa faixa
+  posterior rebaixa maiúsculas de uma faixa anterior.
+- Medição por faixa e no livro inteiro: ver docs/blocks/B04c.md.
 
 ### 5. Layout de data/processed/ (uma pasta por hash do PDF)
 

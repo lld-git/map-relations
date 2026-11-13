@@ -49,7 +49,7 @@ Todos os alvos rodam dentro do contêiner via `docker compose`.
 | `make ingest PDF=<arquivo>` | documento de `data/raw/` → `data/processed/<hash>/` (roda o Docling se faltar cache) |
 | `make map` | gera `docs/mapa/imports.svg` (pydeps) e `docs/mapa/codigo_morto.txt` (vulture) |
 | `make shell` | shell bash dentro do contêiner |
-| `make docling PDF=<arquivo>` | preenche o cache Docling do PDF (pula se já existe) |
+| `make docling PDF=<arquivo>` | preenche o cache Docling por faixas de página (`RANGE=40`; pula faixas prontas) |
 | `make compare PDF=<arquivo>` | compara pdf_loader × Docling → `comparacao_docling.md` |
 | `make compare-all` | compara todos os PDFs listados em `eval/pdfs/conjunto.txt` |
 | `make clean-processed` | lista pastas órfãs de `data/processed/` (`APPLY=1` remove) |

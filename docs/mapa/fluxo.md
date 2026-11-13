@@ -8,8 +8,8 @@ Tracejado = planejado.
 flowchart TB
     RAW["arquivo em data/raw/<br/>(PDF, TXT, EPUB, DOCX, HTML)"]
     CLI["__main__.py:cmd_ingest"]
-    CACHE["cache docling.json<br/>processed/&lt;hash&gt;/docling/&lt;versão&gt;-&lt;opções&gt;/"]
-    CONVD["convert_docling.py:docling_to_blocks"]
+    CACHE["cache por faixa<br/>processed/&lt;hash&gt;/docling/&lt;versão&gt;-&lt;opções&gt;/pages_XXXX-YYYY.json"]
+    CONVD["convert_docling.py:merge_range_docs<br/>(junta faixas + regra de fronteira)"]
     CONVP["canonical.py:pdf_pages_to_blocks<br/>(rota pdf_loader)"]
     CONVT["convert_txt.py:txt_to_blocks"]
     CONVPD["convert_pandoc.py:convert_pandoc"]
@@ -20,9 +20,9 @@ flowchart TB
     OUT["canonical.txt + ingest.json + report.md"]
     COMPARE["comparacao_docling.md"]
 
-    RAW -->|"Makefile:docling → docling convert (serviço, 1× por documento)"| CACHE
+    RAW -->|"Makefile:docling → docling convert por faixa (processo separado)"| CACHE
     RAW -->|"__main__.py:_resolve_raw + store.py:file_hash"| CLI
-    CACHE -->|"__main__.py:_generate_md"| CONVD
+    CACHE -->|"__main__.py:_generate_md (lê todas as faixas)"| CONVD
     CLI -->|"--route pdf_loader: pdf_loader.py:extract_pages"| CONVP
     CLI -->|".txt"| CONVT
     CLI -->|".epub/.docx/.html via pandoc"| CONVPD

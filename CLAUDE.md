@@ -10,7 +10,15 @@ Esta fase pesquisa o método em Python. O porte para TypeScript só ocorre após
 ## Rotina de sessão
 No início de cada sessão, leia CLAUDE.md e docs/status.md antes de agir.
 Grave artefatos aprovados pelo humano em arquivo imediatamente; nunca dependa só da conversa.
+Nunca leia canonical.txt, documento.md ou docling.json inteiros; use head, grep ou trechos por offset.
 
+Contexto e /clear:
+- Ao concluir um bloco: atualize docs/status.md (com Handoff), grave
+  docs/blocks/<bloco>.md, faça o commit e termine a resposta com
+  "Pronto para /clear".
+- Se o contexto estiver longo no meio de um bloco: atualize o Handoff em
+  docs/status.md e avise "Recomendo /compact", sugerindo o que preservar.
+  
 Quando atualizar cada arquivo:
 - README.md: quando um comando mudar.
 - docs/architecture.md: quando um contrato ou camada mudar.
