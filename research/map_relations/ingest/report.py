@@ -1,7 +1,7 @@
-"""Relatório de revisão humana da ingestão em data/processed/<hash>/.
+"""Relatório de revisão humana da ingestão.
 
-Gera canonical.txt, ingest.json e report.md. Nada disso vai para o Git
-(data/processed/ está no .gitignore).
+Gera canonical.txt, ingest.json e report.md dentro da pasta do documento
+(data/processed/<hash_do_arquivo>/ — ADR 008). Nada disso vai para o Git.
 """
 
 from __future__ import annotations
@@ -66,14 +66,13 @@ def render_report(result: IngestResult) -> str:
     return "\n".join(lines)
 
 
-def write_processed(result: IngestResult, processed_dir: Path) -> Path:
-    """Grava os artefatos de revisão em processed_dir/<hash>/ e retorna o caminho."""
-    out = processed_dir / result.source.content_hash
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "canonical.txt").write_text(result.text, encoding="utf-8")
-    (out / "ingest.json").write_text(
+def write_processed(result: IngestResult, out_dir: Path) -> Path:
+    """Grava os derivados (canonical.txt, ingest.json, report.md) em out_dir."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "canonical.txt").write_text(result.text, encoding="utf-8")
+    (out_dir / "ingest.json").write_text(
         result.model_dump_json(by_alias=True, exclude={"text"}, indent=2),
         encoding="utf-8",
     )
-    (out / "report.md").write_text(render_report(result), encoding="utf-8")
-    return out
+    (out_dir / "report.md").write_text(render_report(result), encoding="utf-8")
+    return out_dir

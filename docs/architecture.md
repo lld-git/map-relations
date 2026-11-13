@@ -11,8 +11,10 @@ planejado. O único diagrama de fluxo do projeto está em
 |---|---|---|---|
 | Contratos | `contracts/` | JSON Schema, prompts, lentes e casos — independentes de linguagem | Gerados de `core/models.py`; nunca editados à mão |
 | Domínio | `research/map_relations/core/` | Modelos Pydantic, IDs, transições de estado, regras e Protocols | Sem dependência de fornecedor; síncrono e puro (ADR 005) |
-| Ingestão | `research/map_relations/ingest/` | Parsers → IngestResult (texto canônico NFC) | Todo parser implementa `DocumentParser` |
-| CLI | `research/map_relations/__main__.py` | `python -m map_relations ingest <pdf>` | Só orquestra; sem lógica de domínio |
+| Conversores | `research/map_relations/ingest/convert_*.py`, `canonical.py` | formato de origem → blocos do Markdown intermediário | Só eles conhecem o formato de origem (ADR 008) |
+| Parser único | `research/map_relations/ingest/markdown.py` | documento.md → IngestResult | Interpreta só a convenção; o resto é literal |
+| Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
+| CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
 | Scripts | `scripts/` | Geração/verificação de schemas | Rodam só em Docker |
 | Testes | `tests/` | pytest, tudo em Docker | Não importam fornecedores diretamente |
 
@@ -46,11 +48,18 @@ Regras centrais:
 
 ### IngestResult (`core/ingest_contract.py`)
 
-Saída única de qualquer parser: texto canônico NFC, lista de parágrafos
-(id, sourceId, chapter, number, offsets), capítulos, itens removidos com motivo
-e página, e QualityReport com alertas. Offsets em Unicode code points sobre o
-texto NFC ([ADR 004](adr/004-offsets-nfc.md)). `locate(offset)` devolve
-"cap. X, § Y" — referência legível, nunca usada para verificar provas.
+Saída única da ingestão: texto canônico NFC, lista de parágrafos
+(id, sourceId, chapter, number, kind — título/subtítulo/texto —, page,
+offsets), capítulos, itens removidos com motivo e página, e QualityReport com
+alertas. Offsets em Unicode code points sobre o texto NFC
+([ADR 004](adr/004-offsets-nfc.md)). `locate(offset)` devolve "cap. X, § Y" —
+referência legível, nunca usada para verificar provas.
+
+Todo formato passa pelo Markdown intermediário
+([ADR 008](adr/008-markdown-intermediario.md)): conversores geram
+documento.md (fonte revisável pelo humano, com marcadores `<!-- p.N -->`);
+o parser único o transforma em IngestResult. Editar o .md muda o hash
+canônico e invalida offsets registrados.
 
 ### Protocols (`core/protocols.py`)
 
@@ -76,10 +85,16 @@ flowchart BT
     end
     subgraph ingest
         document["ingest.document"]
-        canonical["ingest.canonical"]
+        md["ingest.markdown<br/>(parser único)"]
+        canonical["ingest.canonical<br/>(rota pdf_loader)"]
+        convdocling["ingest.convert_docling"]
+        convtxt["ingest.convert_txt"]
+        convpandoc["ingest.convert_pandoc"]
+        storemod["ingest.store"]
         pdf["ingest.pdf_loader"]
         url["ingest.url_loader"]
         reportmod["ingest.report"]
+        dcompare["ingest.docling_compare"]
     end
     cli["__main__ (CLI)"]
     schemas["scripts.generate_schemas"]
@@ -93,16 +108,25 @@ flowchart BT
     protocols --> contract
     document --> ids
     document --> models
-    canonical --> ids
+    md --> contract
+    md --> document
     canonical --> contract
-    canonical --> models
-    canonical --> document
-    pdf --> contract
+    canonical --> md
+    convdocling --> canonical
+    convdocling --> md
+    convtxt --> canonical
+    convpandoc --> canonical
     pdf --> canonical
     url --> document
     reportmod --> contract
+    dcompare --> canonical
+    cli --> convdocling
+    cli --> convtxt
+    cli --> convpandoc
+    cli --> storemod
     cli --> pdf
     cli --> reportmod
+    cli --> dcompare
     schemas --> models
 
     engines["engines (B03)"]:::planned
@@ -132,3 +156,4 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [005](adr/005-llm-assincrono.md) | Só LlmEngine.complete é async; tarefas com gather + semáforo |
 | [006](adr/006-transicoes-de-estado.md) | Tabela de transições de estado; ChangeLog em toda mudança |
 | [007](adr/007-pacote-instalavel.md) | map_relations instalável via hatchling; sem PYTHONPATH |
+| [008](adr/008-markdown-intermediario.md) | Markdown intermediário único; cache Docling; documento.md revisável |

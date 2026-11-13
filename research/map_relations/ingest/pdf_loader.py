@@ -13,6 +13,12 @@ from map_relations.core.ingest_contract import IngestResult
 from .canonical import build_ingest_result
 
 
+def extract_pages(path: str | Path) -> list[str]:
+    """Texto bruto de cada página do PDF (entrada da rota pdf_loader)."""
+    reader = PdfReader(Path(path))
+    return [page.extract_text() or "" for page in reader.pages]
+
+
 def load_pdf(path: str | Path) -> IngestResult:
     """Extrai texto de um PDF e monta o IngestResult.
 
@@ -20,9 +26,7 @@ def load_pdf(path: str | Path) -> IngestResult:
     result.locate(offset) converte em "cap. X, § Y".
     """
     path = Path(path)
-    reader = PdfReader(path)
-    raw_pages = [page.extract_text() or "" for page in reader.pages]
-    return build_ingest_result(raw_pages, title=path.stem, kind="pdf")
+    return build_ingest_result(extract_pages(path), title=path.stem, kind="pdf")
 
 
 class PdfParser:

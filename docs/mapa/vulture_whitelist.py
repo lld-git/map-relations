@@ -37,6 +37,7 @@ models.ChangeLog.before
 models.ChangeLog.after
 models.Note.target_id
 ingest_contract.Paragraph.source_id
+ingest_contract.Paragraph.page
 models.Mention.surface
 models.RelationType.definition
 models.RelationType.version

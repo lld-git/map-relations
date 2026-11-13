@@ -231,8 +231,8 @@ def test_render_report_sections(result):
 
 
 def test_write_processed_creates_artifacts(result, tmp_path):
-    out = write_processed(result, tmp_path)
-    assert out == tmp_path / result.source.content_hash
+    out = write_processed(result, tmp_path / "doc")
+    assert out == tmp_path / "doc"
     assert (out / "canonical.txt").read_text(encoding="utf-8") == result.text
     assert (out / "report.md").exists()
     ingest_json = (out / "ingest.json").read_text(encoding="utf-8")

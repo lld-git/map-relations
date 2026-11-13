@@ -1,7 +1,8 @@
-"""Monta o IngestResult a partir das páginas brutas de um parser.
+"""Rota pdf_loader da ingestão (fallback barato do Docling — ADR 008).
 
-Separado do pdf_loader para ser testável com páginas sintéticas e
-reutilizável por TXT/EPUB (resto do B04) e DoclingParser (B04b).
+Converte páginas brutas de um parser em blocos MdBlock (com página, título e
+alertas) para o Markdown intermediário. A montagem do IngestResult vive no
+parser único (markdown.parse_markdown); build_ingest_result encadeia os dois.
 """
 
 from __future__ import annotations
@@ -9,19 +10,14 @@ from __future__ import annotations
 import re
 from collections import Counter
 
-from map_relations.core.ids import nfc
 from map_relations.core.ingest_contract import (
-    ChapterSpan,
     IngestResult,
-    Paragraph,
     ParagraphKind,
-    QualityReport,
     RemovalReason,
     RemovedItem,
 )
-from map_relations.core.models import Source
 
-from .document import compute_text_hash
+from .markdown import MdBlock, parse_markdown, render_markdown
 
 # Linha repetida no início/fim de pelo menos esta fração das páginas é
 # tratada como cabeçalho/rodapé.
@@ -73,6 +69,27 @@ def _is_uppercase_heading(line: str) -> bool:
 
 def _is_chapter_heading(line: str) -> bool:
     return _is_explicit_heading(line) or _is_uppercase_heading(line)
+
+
+def classify_headings(texts: list[str]) -> tuple[list[bool], list[str]]:
+    """Precedência de títulos (genérica, sem regra de livro específico):
+    com títulos explícitos, só eles numeram capítulos — maiúsculas viram texto
+    com alerta; sem nenhum explícito, maiúsculas numeram, com alerta."""
+    explicit = [_is_explicit_heading(t) for t in texts]
+    upper_only = [_is_uppercase_heading(t) and not e for t, e in zip(texts, explicit)]
+    alerts: list[str] = []
+    if any(explicit):
+        for text, up in zip(texts, upper_only):
+            if up:
+                alerts.append(
+                    f'título em maiúsculas não numerado como capítulo: "{text[:60]}"'
+                )
+        return explicit, alerts
+    if any(upper_only):
+        alerts.append(
+            "capítulos detectados apenas pela regra de maiúsculas — confirmar na revisão"
+        )
+    return [e or u for e, u in zip(explicit, upper_only)], alerts
 
 
 def _normalize_line(line: str) -> str:
@@ -143,21 +160,6 @@ def _clean_pages(
     return cleaned, removed, alerts
 
 
-def _join_pages(pages: list[str]) -> str:
-    """Une páginas corrigindo palavras hifenizadas na quebra de página."""
-    out = ""
-    for page in pages:
-        if not page:
-            continue
-        if out.endswith("-"):
-            out = out[:-1] + page.lstrip()  # palavra atravessa a página
-        elif out:
-            out += "\n\n" + page
-        else:
-            out = page
-    return out
-
-
 def _split_paragraph_blocks(text: str) -> list[str]:
     text = re.sub(r"-\n", "", text)         # junta palavras hifenizadas
     text = re.sub(r"[^\S\n]+", " ", text)   # colapsa espaços, preserva \n
@@ -178,107 +180,42 @@ def _split_paragraph_blocks(text: str) -> list[str]:
     return blocks
 
 
-def build_ingest_result(raw_pages: list[str], title: str, kind: str) -> IngestResult:
-    """Constrói o IngestResult: texto canônico NFC, parágrafos, capítulos,
-    itens removidos e QualityReport."""
+def pdf_pages_to_blocks(
+    raw_pages: list[str],
+) -> tuple[list[MdBlock], list[RemovedItem], list[str]]:
+    """Conversor fallback: páginas brutas → blocos MdBlock com página.
+
+    Mantém o comportamento histórico do pdf_loader: quebra de página é quebra
+    de bloco, exceto quando a página termina com hífen (palavra atravessa)."""
     cleaned_pages, removed, alerts = _clean_pages(raw_pages)
-    blocks = [nfc(b) for b in _split_paragraph_blocks(_join_pages(cleaned_pages))]
 
-    # texto canônico primeiro: parágrafos referenciam o source pelo id,
-    # e o source referencia o texto pelo hash
-    text = "\n\n".join(blocks)
-    source = Source(title=title, kind=kind, content_hash=compute_text_hash(text))
+    blocks: list[MdBlock] = []
+    for page_no, page in enumerate(cleaned_pages, start=1):
+        if not page:
+            continue
+        page_blocks = _split_paragraph_blocks(page)
+        if not page_blocks:
+            continue
+        start = 0
+        if blocks and blocks[-1].text.endswith("-"):
+            # palavra atravessa a página: cola no bloco anterior
+            blocks[-1].text = blocks[-1].text[:-1] + page_blocks[0]
+            start = 1
+        for text in page_blocks[start:]:
+            blocks.append(MdBlock(text, page=page_no))
 
-    # Precedência de títulos: se a obra tem títulos explícitos (Capítulo N,
-    # romanos), só eles numeram capítulos — folha de rosto, sumário e
-    # subtítulos em maiúsculas viram parágrafos de texto, com alerta.
-    # Sem nenhum título explícito, a regra de maiúsculas numera, com alerta.
-    explicit = [_is_explicit_heading(b) for b in blocks]
-    upper_only = [
-        _is_uppercase_heading(b) and not e for b, e in zip(blocks, explicit)
-    ]
-    if any(explicit):
-        is_heading = explicit
-        for block, up in zip(blocks, upper_only):
-            if up:
-                alerts.append(
-                    f'título em maiúsculas não numerado como capítulo: "{block[:60]}"'
-                )
-    else:
-        is_heading = [e or u for e, u in zip(explicit, upper_only)]
-        if any(upper_only):
-            alerts.append(
-                "capítulos detectados apenas pela regra de maiúsculas — confirmar na revisão"
-            )
+    is_heading, heading_alerts = classify_headings([b.text for b in blocks])
+    for block, heading in zip(blocks, is_heading):
+        if heading:
+            block.kind = ParagraphKind.titulo
+    alerts.extend(heading_alerts)
+    return blocks, removed, alerts
 
-    paragraphs: list[Paragraph] = []
-    chapters: list[ChapterSpan] = []
-    offset = 0
-    chapter: int | None = None
-    number_in_chapter = 0
 
-    for i, block in enumerate(blocks):
-        if i > 0:
-            offset += 2  # separador "\n\n"
-        start, end = offset, offset + len(block)
-        if is_heading[i]:
-            if chapters:
-                chapters[-1] = chapters[-1].model_copy(update={"end_offset": start})
-            chapter = len(chapters) + 1
-            chapters.append(
-                ChapterSpan(index=chapter, title=block, start_offset=start, end_offset=end)
-            )
-            number_in_chapter = 0
-            paragraphs.append(
-                Paragraph(
-                    source_id=source.id,
-                    chapter=chapter,
-                    number=0,
-                    kind=ParagraphKind.titulo,
-                    start_offset=start,
-                    end_offset=end,
-                )
-            )
-        else:
-            number_in_chapter += 1
-            paragraphs.append(
-                Paragraph(
-                    source_id=source.id,
-                    chapter=chapter,
-                    number=number_in_chapter,
-                    start_offset=start,
-                    end_offset=end,
-                )
-            )
-        offset = end
-
-    if chapters:
-        chapters[-1] = chapters[-1].model_copy(update={"end_offset": len(text)})
-    else:
-        alerts.append("nenhum capítulo detectado")
-    if not text:
-        alerts.append("texto canônico vazio")
-
-    texto_por_capitulo = Counter(
-        p.chapter for p in paragraphs if p.kind is ParagraphKind.texto
-    )
-    for ch in chapters:
-        if texto_por_capitulo.get(ch.index, 0) == 0:
-            alerts.append(f"capítulo {ch.index} sem parágrafos de texto")
-
-    reason_counts = Counter(item.reason.value for item in removed)
-    quality = QualityReport(
-        pages=len(raw_pages),
-        chapters_detected=len(chapters),
-        paragraphs=len(paragraphs),
-        removed_by_reason=dict(reason_counts),
-        alerts=alerts,
-    )
-    return IngestResult(
-        source=source,
-        text=text,
-        paragraphs=paragraphs,
-        chapters=chapters,
-        removed=removed,
-        quality=quality,
+def build_ingest_result(raw_pages: list[str], title: str, kind: str) -> IngestResult:
+    """Rota pdf_loader completa: páginas → MdBlocks → documento.md → parser único."""
+    blocks, removed, alerts = pdf_pages_to_blocks(raw_pages)
+    md = render_markdown(blocks)
+    return parse_markdown(
+        md, title, kind, removed=removed, extra_alerts=alerts, pages=len(raw_pages)
     )

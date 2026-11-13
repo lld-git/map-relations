@@ -44,7 +44,7 @@ FROM prod AS dev
 USER root
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends graphviz && \
+    apt-get install -y --no-install-recommends graphviz pandoc && \
     rm -rf /var/lib/apt/lists/*
 
 # Reinstala com grupo dev e o pacote em modo editável (código vivo nos volumes)

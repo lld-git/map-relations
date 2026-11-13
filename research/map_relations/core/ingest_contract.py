@@ -19,6 +19,7 @@ class _Base(BaseModel):
 
 class ParagraphKind(enum.StrEnum):
     titulo = "titulo"
+    subtitulo = "subtitulo"
     texto = "texto"
 
 
@@ -37,8 +38,9 @@ class Paragraph(_Base):
     id: str = Field(default_factory=new_id)
     source_id: str
     chapter: int | None = None  # 1-based; None = preâmbulo
-    number: int  # 1-based dentro do capítulo; 0 = título
+    number: int  # 1-based dentro do capítulo; 0 = título/subtítulo
     kind: ParagraphKind = ParagraphKind.texto
+    page: int | None = None  # página de origem (via <!-- p.N -->), se houver
     start_offset: int
     end_offset: int
 
@@ -95,4 +97,6 @@ class IngestResult(_Base):
             return f"§ {p.number}"
         if p.kind is ParagraphKind.titulo:
             return f"cap. {p.chapter}, título"
+        if p.kind is ParagraphKind.subtitulo:
+            return f"cap. {p.chapter}, subtítulo"
         return f"cap. {p.chapter}, § {p.number}"

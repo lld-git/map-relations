@@ -3,8 +3,14 @@
 
 COMPOSE = docker compose
 RUN = $(COMPOSE) run --rm app
+name = $(notdir $(PDF))
+stem = $(basename $(notdir $(PDF)))
 
-.PHONY: test lint typecheck schema-check check ingest map shell docling compare compare-all
+# Em sincronia com DOCLING_OPTIONS_SLUG em map_relations/ingest/store.py:
+# mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
+DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
+
+.PHONY: test lint typecheck schema-check check ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -20,12 +26,17 @@ schema-check:
 
 check: lint typecheck schema-check test
 
-# Uso: make ingest PDF=livro.pdf  (o arquivo deve estar em data/raw/)
+# Uso: make ingest PDF=livro.pdf  (o arquivo deve estar em data/raw/).
+# Para PDF a rota padrão é o Docling; sem cache (exit 3), roda o serviço e repete.
 ingest:
 ifndef PDF
 	$(error uso: make ingest PDF=<arquivo em data/raw>)
 endif
-	$(RUN) uv run python -m map_relations ingest /app/data/raw/$(notdir $(PDF))
+	@$(RUN) python -m map_relations ingest /app/data/raw/$(name); st=$$?; \
+	if [ $$st -eq 3 ]; then \
+		$(MAKE) --no-print-directory docling PDF=$(name) && \
+		$(RUN) python -m map_relations ingest /app/data/raw/$(name); \
+	else exit $$st; fi
 
 # Gera docs/mapa/imports.svg (pydeps) e docs/mapa/codigo_morto.txt (vulture).
 # Nota: com o pacote instalável (ADR 007) os módulos chamam map_relations.* e
@@ -48,20 +59,26 @@ map:
 shell:
 	$(RUN) bash
 
-# Converte um PDF com o Docling (serviço pesado, profile docling; sem OCR —
-# os PDFs do conjunto têm camada de texto). Saída: data/docling/<nome>.json
-# --page-batch-size 1 limita o pico de memória (VM do Docker Desktop: ~4 GiB).
+# Converte um PDF com o Docling para o cache (ADR 008 §4):
+# data/processed/<hash>/docling/<versão>-<opções>/docling.json
+# Pula se o cache já existe. Imagem pesada: profile docling, nunca no CI.
 docling:
 ifndef PDF
 	$(error uso: make docling PDF=<arquivo em data/raw>)
 endif
-	$(COMPOSE) --profile docling run --rm docling \
-		docling /data/raw/$(notdir $(PDF)) --to json --no-ocr \
-		--page-batch-size 1 --output /data/docling
+	@dir=$$($(COMPOSE) run --rm -T app python -m map_relations prepare /app/data/raw/$(name)) && \
+	if [ -f "$$dir/docling.json" ]; then \
+		echo "cache ok: $$dir/docling.json"; \
+	else \
+		mkdir -p "$$dir" && \
+		$(COMPOSE) --profile docling run --rm docling sh -c \
+			"docling convert /data/raw/$(name) --to json $(DOCLING_FLAGS) --output /$$dir \
+			 && mv /$$dir/$(stem).json /$$dir/docling.json"; \
+	fi
 
 # Compara pdf_loader × Docling; grava data/processed/<hash>/comparacao_docling.md
 compare: docling
-	$(RUN) python -m map_relations compare /app/data/raw/$(notdir $(PDF))
+	$(RUN) python -m map_relations compare /app/data/raw/$(name)
 
 # Roda a comparação para todos os PDFs listados em eval/pdfs/conjunto.txt
 compare-all:
@@ -69,3 +86,7 @@ compare-all:
 		echo "== $$pdf =="; \
 		$(MAKE) --no-print-directory compare PDF=$$pdf || exit 1; \
 	done
+
+# Lista pastas órfãs de data/processed/ (APPLY=1 remove de verdade)
+clean-processed:
+	$(RUN) python -m map_relations clean $(if $(APPLY),--apply,)
