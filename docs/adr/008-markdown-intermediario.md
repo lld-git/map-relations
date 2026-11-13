@@ -52,8 +52,17 @@ para a revisão apontar de volta ao .md.
 - Chave de cache: hash do PDF + versão do Docling + opções de conversão.
 - documento.md é **sempre** gerado a partir do docling.json, nunca do PDF.
 - Para PDF com camada de texto: OCR, tabelas e imagens **desligados**.
-- Medir tempo e memória antes e depois dessas opções (mesma fatia de
-  40 páginas; `/usr/bin/time -v` no contêiner) e registrar aqui.
+- Medição (fatia de 40 páginas, `/usr/bin/time -v`, Docling 2.150.0, CPU,
+  VM de 3,7 GiB — 2026-11-12):
+
+  | Configuração | Tempo | Pico de memória |
+  |---|---|---|
+  | padrão (OCR + tabelas, batch 4) | 84,4 s | 3,05 GiB |
+  | `--no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1` | 64,2 s | 2,32 GiB |
+
+  −24% de tempo e −22% de memória. O pico de ~3 GiB do modo padrão explica o
+  OOM do livro inteiro (379 p.) na VM de 3,7 GiB; mesmo com as opções, o livro
+  inteiro ainda exige a VM com mais memória (pendência do Leon).
 
 ### 5. Layout de data/processed/ (uma pasta por hash do PDF)
 

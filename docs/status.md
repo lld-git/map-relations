@@ -30,6 +30,13 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   maiúsculas); serviço docling real + `make compare` / `make compare-all` com
   relatório pdf_loader × Docling; eval/pdfs/ preparado para 3–5 PDFs do Leon.
   Relatório: [docs/blocks/B04b-prova.md](blocks/B04b-prova.md).
+- **B04c** — Markdown intermediário único (ADR 008): conversores
+  (Docling/pdf_loader/TXT/pandoc) geram documento.md revisável com
+  `<!-- p.N -->`; parser único → IngestResult (subtítulo e página no
+  contrato); layout data/processed/<hash_do_arquivo>/ com cache Docling por
+  versão+opções; CLI ingest/prepare/compare/clean; make ingest roda o Docling
+  no cache miss; clean-processed lista órfãs (APPLY=1 remove).
+  Relatório: [docs/blocks/B04c.md](blocks/B04c.md).
 
 ## Em andamento
 
@@ -64,8 +71,8 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Handoff
 
-**Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/B04.md,
-docs/blocks/B04-docs.md e docs/blocks/B04-pkg.md. Aprovado, iniciar o **B02**: criar
+**Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/ (B04,
+B04-docs, B04-pkg, B04b-prova e B04c). Aprovado, iniciar o **B02**: criar
 `eval/gold/processo.json` (exemplos marcados como fictícios, offsets sobre o
 texto canônico do IngestResult) e o comando
 `eval --run <arquivo> --gold <arquivo>` com precisão, recall e F1 por tipo,

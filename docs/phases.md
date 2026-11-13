@@ -117,6 +117,25 @@ específica de livro.
 **Aprendizados:** a regra de maiúsculas sozinha transforma folha de rosto,
 sinopse e subtítulos em capítulos; precedência resolve sem lista de exceções.
 
+## B04c — Markdown intermediário único (concluído em 2026-11-12)
+
+**Objetivo:** ADR 008 — conversores por formato geram documento.md revisável;
+parser único → IngestResult; Docling 1× por documento com cache por
+versão+opções; layout data/processed/<hash_do_arquivo>/.
+
+**Métricas:** 165 testes na conclusão. Medição Docling na fatia de 40 páginas
+(VM 3,7 GiB): padrão 84,4 s / pico 3,05 GiB; com OCR, tabelas e imagens
+desligados 64,2 s / 2,32 GiB (−24% tempo, −22% memória). O pico de ~3 GiB do
+modo padrão explica o OOM do livro de 379 páginas.
+
+**Observações:** documento.md nunca é sobrescrito sem --force-md;
+conversao.json preserva removidos e alertas da conversão para reparses;
+editar o .md muda o hash canônico (coberto por teste).
+
+**Aprendizados:** o escape mínimo (\\#, \\*, <\\!--) basta porque o parser só
+interpreta a convenção; manter a chave de cache em código e as flags no
+Makefile exige nota de sincronia dos dois lados.
+
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 
 Fecha com o relatório do B06: regras vs. LLM vs. híbrido contra o gabarito.

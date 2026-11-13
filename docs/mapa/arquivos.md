@@ -44,8 +44,8 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | tests/test_rules.py | kinds compatíveis, transition + ChangeLog | — | teste |
 | tests/test_states.py | todos os 5×5×2 pares de transição | — | teste |
 
-Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): os 8 itens
-apontados são funções de contrato usadas só em testes (locate,
-validate_claim_kinds, transition, is_terminal, PdfParser, extract_mentions,
-unique_names) — aguardam os blocos B02–B07 — e `load_url`, o único candidato
-real a dívida (migração pendente ao contrato de ingestão).
+Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): dos 9 itens
+apontados, 8 são contratos/utilitários usados só em testes (locate,
+validate_claim_kinds, transition, is_terminal, PdfParser, write_processed,
+extract_mentions, unique_names) — aguardam os blocos B02–B07 — e `load_url`
+é o único candidato real a dívida (migração pendente ao contrato de ingestão).
