@@ -30,9 +30,12 @@ RUN useradd --create-home --uid 1000 appuser
 
 COPY --chown=appuser:appuser . .
 
-# 2ª passada instala o próprio pacote, não editável (código vai para site-packages)
+# 2ª passada instala o próprio pacote, não editável (código vai para site-packages).
+# data/ e eval/runs/ são excluídos do contexto Docker (.dockerignore) e montados
+# como volumes em dev; criamos os diretórios aqui para que testes sem volumes passem.
 RUN uv sync --frozen --no-dev --no-editable && \
-    chown -R appuser:appuser /app/.venv && \
+    mkdir -p data/raw data/processed eval/runs && \
+    chown -R appuser:appuser /app/.venv /app/data /app/eval/runs && \
     chown appuser:appuser /app
 
 USER appuser
