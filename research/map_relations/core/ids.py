@@ -15,7 +15,10 @@ def _hash(*parts: str) -> str:
     return hashlib.sha256("\x00".join(parts).encode("utf-8")).hexdigest()
 
 
-def claim_key(subject_id: str, type_id: str, object_id: str) -> str:
+def claim_key(subject_id: str, type_id: str, object_id: str, *, symmetric: bool = False) -> str:
+    if symmetric:
+        a, b = sorted([subject_id, object_id])
+        return _hash(a, type_id, b)
     return _hash(subject_id, type_id, object_id)
 
 
