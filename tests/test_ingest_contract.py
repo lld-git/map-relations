@@ -16,12 +16,12 @@ PAGES = [
         "Documento interno de teste.\n"
         "\n"
         "Capítulo I\n"
-        "Josef K. aguardava no escritório quando o inspec-\n"
+        "Josef K. aguardava quando recebeu a convo-\n"
         "1"
     ),
     (
         f"{HEADER}\n"
-        "tor entrou sem avisar. A senhora Grubach observava da porta.\n"
+        "cação para comparecer. A senhora Grubach observava da porta.\n"
         "\n"
         "K. esperou sentado à mesa.\n"
         "2"
@@ -57,8 +57,8 @@ def test_header_and_page_numbers_removed(result):
 
 
 def test_hyphenation_joined_across_pages(result):
-    assert "inspetor entrou sem avisar" in result.text
-    assert "inspec- tor" not in result.text and "inspec-tor" not in result.text
+    assert "convocação para comparecer" in result.text
+    assert "convo- cação" not in result.text and "convo-cação" not in result.text
 
 
 def test_hyphenation_joined_within_page(result):

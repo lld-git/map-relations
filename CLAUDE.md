@@ -28,6 +28,7 @@ Quando atualizar cada arquivo:
 - docs/status.md: ao concluir um bloco e antes de /clear ou /compact.
 - docs/phases.md: ao concluir um bloco ou checkpoint.
 - make map, docs/mapa/fluxo.md e docs/mapa/arquivos.md: ao concluir cada bloco.
+- Não edite HUMANO.md
 
 ## Princípios obrigatórios
 1. Domínio sem dependência de fornecedor, banco ou biblioteca de grafo.

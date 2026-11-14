@@ -3,7 +3,9 @@ Verifica cobertura de páginas entre faixas e capítulos entre rotas.
 Usa apenas metadados (ingest.json, conversao.json, nomes de arquivos).
 Saída ≤ 20 linhas.
 """
-import json, os, re
+import json
+import os
+import re
 
 BASE = "/app/data/processed"
 

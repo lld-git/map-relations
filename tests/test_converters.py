@@ -58,7 +58,7 @@ def test_docling_blocks_feed_single_parser():
         removed=removed, extra_alerts=alerts, pages=pages,
     )
     assert r.quality.chapters_detected == 1
-    assert r.locate(r.text.index("Prisão.")) == "cap. 1, subtítulo"
+    assert r.locate(r.text.index("A Visita.")) == "cap. 1, subtítulo"
     assert r.locate(r.text.index("Josef K. entrou")) == "cap. 1, § 1"
     assert r.paragraphs[0].page == 1
     assert r.paragraphs[-1].page == 2
