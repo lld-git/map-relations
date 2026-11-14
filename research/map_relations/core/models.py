@@ -179,6 +179,7 @@ class RelationType(_Base):
     subject_kinds: list[EntityKind]
     object_kinds: list[EntityKind]
     version: int
+    symmetric: bool = False
 
 
 class Claim(_Base):

@@ -72,6 +72,19 @@ def test_claim_key_no_juxtaposition_collision():
     assert claim_key("ab", "c", "x") != claim_key("a", "bc", "x")
 
 
+def test_claim_key_symmetric_ab_eq_ba():
+    assert claim_key("A", "t", "B", symmetric=True) == claim_key("B", "t", "A", symmetric=True)
+
+
+def test_claim_key_nonsymmetric_ab_neq_ba():
+    assert claim_key("A", "t", "B") != claim_key("B", "t", "A")
+
+
+def test_claim_key_nonsymmetric_unchanged():
+    # chaves sem symmetric=True não mudam em relação à implementação anterior
+    assert claim_key("s", "t", "o") == claim_key("s", "t", "o", symmetric=False)
+
+
 # ── offsets ───────────────────────────────────────────────────────────────────
 
 

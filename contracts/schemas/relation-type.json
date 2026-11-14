@@ -39,6 +39,11 @@
       "title": "Subjectkinds",
       "type": "array"
     },
+    "symmetric": {
+      "default": false,
+      "title": "Symmetric",
+      "type": "boolean"
+    },
     "version": {
       "title": "Version",
       "type": "integer"

@@ -6,6 +6,9 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Concluído
 
+- **B01b** — relações simétricas: `RelationType.symmetric`, `claim_key` ordena
+  sujeito/objeto quando simétrico; ADR 003 e schema atualizados; 3 novos testes.
+  Relatório: [docs/blocks/B01b.md](blocks/B01b.md).
 - **B00** — fundação: projeto Python (uv), pytest, ruff, mypy, CI.
   Relatório: [docs/blocks/B00.md](blocks/B00.md).
 - **B00b** — Docker: multi-stage prod/dev, compose (app, painel em
@@ -74,12 +77,12 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 ## Handoff
 
 **Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/ (B04,
-B04-docs, B04-pkg, B04b-prova e B04c). Aprovado, iniciar o **B02**: criar
+B04-docs, B04-pkg, B04b-prova, B04c e B01b). Aprovado, iniciar o **B02**: criar
 `eval/gold/processo.json` (exemplos marcados como fictícios, offsets sobre o
 texto canônico do IngestResult) e o comando
 `eval --run <arquivo> --gold <arquivo>` com precisão, recall e F1 por tipo,
 classe, nível e lente — critérios no bloco B02 do CLAUDE.md.
 
 **Como retomar:** ler CLAUDE.md e este arquivo; `make check` deve passar
-(lint + typecheck + schema-check + 139 testes em Docker); `make map` regenera
+(lint + typecheck + schema-check + 180 testes em Docker); `make map` regenera
 o mapa. A CLI de ingestão é `make ingest PDF=<arquivo em data/raw>`.
