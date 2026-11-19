@@ -3,10 +3,12 @@
 
 from docling_core.types.doc.labels import DocItemLabel
 
+from map_relations.core.ingest_contract import ParagraphKind
 from map_relations.ingest.convert_docling import DOCLING_LABEL_MAP
 from map_relations.ingest.layout import (
     LayoutItem,
     LayoutLabel,
+    classify_titles,
     join_crossing_items,
     normalize_bbox,
     renumber,
@@ -151,3 +153,37 @@ def test_join_crossing_items_never_joins_a_title():
     b = [_titulo(0, "Capítulo II", page=3)]
     out = join_crossing_items([a, b])
     assert [it.text for it in out] == ["fim do trecho sem ponto", "Capítulo II"]
+
+
+# ── precedência de títulos (fase 2.2) ────────────────────────────────────────
+
+
+def test_classify_titles_explicit_numbers_and_weak_signal_gets_alert():
+    items = [
+        _titulo(0, "NO ESCRITÓRIO"),  # sinal fraco, sem explícito por perto
+        _titulo(1, "Capítulo I"),  # explícito
+        _texto(2, "Josef K. entrou na sala."),
+    ]
+    kinds, alerts = classify_titles(items)
+    assert kinds == [ParagraphKind.texto, ParagraphKind.titulo, ParagraphKind.texto]
+    assert any(
+        alert == 'título do layout não numerado como capítulo: "NO ESCRITÓRIO"'
+        for alert in alerts
+    )
+
+
+def test_classify_titles_weak_signal_numbers_when_no_explicit():
+    items = [_titulo(0, "A PARTIDA"), _texto(1, "Um texto.")]
+    kinds, alerts = classify_titles(items)
+    assert kinds == [ParagraphKind.titulo, ParagraphKind.texto]
+    assert any("layout do Docling" in a for a in alerts)
+
+
+def test_classify_titles_weak_signal_right_after_title_becomes_subtitle():
+    items = [
+        _titulo(0, "Capítulo I"),
+        _titulo(1, "A Visita. Conversa com a senhora Grubach"),
+        _texto(2, "Josef K. entrou na sala."),
+    ]
+    kinds, _ = classify_titles(items)
+    assert kinds == [ParagraphKind.titulo, ParagraphKind.subtitulo, ParagraphKind.texto]

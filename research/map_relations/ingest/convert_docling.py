@@ -23,16 +23,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from map_relations.core.ingest_contract import (
-    ParagraphKind,
-    RemovalReason,
-    RemovedItem,
-)
+from map_relations.core.ingest_contract import RemovalReason, RemovedItem
 
-from .canonical import is_explicit_heading
 from .layout import (
     LayoutItem,
     LayoutLabel,
+    classify_titles,
     join_crossing_items,
     normalize_bbox,
     renumber,
@@ -194,33 +190,10 @@ def docling_items(
 
 
 def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
-    """Classifica os itens já unidos em blocos (precedência global de títulos)."""
-    blocks: list[MdBlock] = []
-    alerts: list[str] = []
-    has_explicit = any(is_explicit_heading(it.text) for it in items)
-    previous_was_title = False
-    for it in items:
-        if is_explicit_heading(it.text):
-            blocks.append(MdBlock(it.text, ParagraphKind.titulo, it.page))
-            previous_was_title = True
-            continue
-        if it.label is LayoutLabel.titulo:
-            if not has_explicit:
-                blocks.append(MdBlock(it.text, ParagraphKind.titulo, it.page))
-                previous_was_title = True
-                continue
-            if previous_was_title:
-                blocks.append(MdBlock(it.text, ParagraphKind.subtitulo, it.page))
-                previous_was_title = False
-                continue
-            alerts.append(f'título do layout não numerado como capítulo: "{it.text[:60]}"')
-        blocks.append(MdBlock(it.text, ParagraphKind.texto, it.page))
-        previous_was_title = False
-
-    if not has_explicit and any(it.label is LayoutLabel.titulo for it in items):
-        alerts.append(
-            "capítulos vindos só do layout do Docling — confirmar na revisão"
-        )
+    """Classifica os itens já unidos em blocos (precedência global de títulos,
+    delegada a layout.classify_titles)."""
+    kinds, alerts = classify_titles(items)
+    blocks = [MdBlock(it.text, kind, it.page) for it, kind in zip(items, kinds)]
     return blocks, alerts
 
 

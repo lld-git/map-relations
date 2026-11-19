@@ -17,6 +17,7 @@ from map_relations.core.ingest_contract import (
     RemovedItem,
 )
 
+from .layout import _despace, is_explicit_heading  # noqa: F401 (re-exportados: docling_compare, alerts)
 from .markdown import MdBlock, parse_markdown, render_markdown
 
 # Linha repetida no início/fim de pelo menos esta fração das páginas é
@@ -24,38 +25,6 @@ from .markdown import MdBlock, parse_markdown, render_markdown
 _REPEAT_THRESHOLD = 0.6
 
 _PAGE_NUMBER_RE = re.compile(r"^[\s\-–—]*\d{1,4}[\s\-–—]*$")
-
-# Padrões explícitos de capítulo (com e sem espaçamento entre letras).
-_CHAPTER_RES = [
-    re.compile(r"^cap[íi]tulo\s+\S+", re.IGNORECASE),
-    re.compile(r"^[IVXLCDM]{1,7}\.?$"),
-]
-# Versões sobre o texto sem espaços ("C A P Í T U L O I" → "capítuloi").
-_CHAPTER_DESPACED_RES = [
-    re.compile(r"^cap[íi]tulo", re.IGNORECASE),
-    re.compile(r"^[IVXLCDM]{1,7}\.?$", re.IGNORECASE),
-]
-
-
-def _despace(line: str) -> str:
-    """Remove espaçamento tipográfico entre letras, para detecção apenas.
-    Só age quando a maioria dos tokens é de um caractere (letras espaçadas)."""
-    tokens = line.split()
-    if len(tokens) >= 4 and sum(len(t) == 1 for t in tokens) / len(tokens) >= 0.7:
-        return "".join(tokens)
-    return line
-
-
-def is_explicit_heading(line: str) -> bool:
-    """Título que casa um padrão explícito de capítulo (Capítulo N, romanos),
-    inclusive com letras espaçadas."""
-    line = line.strip()
-    if not line or len(line) > 60:
-        return False
-    if any(rx.match(line) for rx in _CHAPTER_RES):
-        return True
-    despaced = _despace(line)
-    return despaced != line and any(rx.match(despaced) for rx in _CHAPTER_DESPACED_RES)
 
 
 def _is_uppercase_heading(line: str) -> bool:

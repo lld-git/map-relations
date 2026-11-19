@@ -10,7 +10,10 @@ regras de pós-processamento produzem listas novas (dataclasses.replace).
 from __future__ import annotations
 
 import enum
+import re
 from dataclasses import dataclass, replace
+
+from map_relations.core.ingest_contract import ParagraphKind
 
 
 class LayoutLabel(enum.StrEnum):
@@ -139,3 +142,78 @@ def join_crossing_items(ranges: list[list[LayoutItem]]) -> list[LayoutItem]:
                 items = items[1:]
         merged.extend(items)
     return merged
+
+
+# Padrões explícitos de capítulo (com e sem espaçamento entre letras). Único
+# sinal forte de título entre todos os conversores: quando presente em
+# qualquer item do documento, só ele numera capítulos (ver classify_titles).
+_CHAPTER_RES = [
+    re.compile(r"^cap[íi]tulo\s+\S+", re.IGNORECASE),
+    re.compile(r"^[IVXLCDM]{1,7}\.?$"),
+]
+# Versões sobre o texto sem espaços ("C A P Í T U L O I" → "capítuloi").
+_CHAPTER_DESPACED_RES = [
+    re.compile(r"^cap[íi]tulo", re.IGNORECASE),
+    re.compile(r"^[IVXLCDM]{1,7}\.?$", re.IGNORECASE),
+]
+
+
+def _despace(line: str) -> str:
+    """Remove espaçamento tipográfico entre letras, para detecção apenas.
+    Só age quando a maioria dos tokens é de um caractere (letras espaçadas)."""
+    tokens = line.split()
+    if len(tokens) >= 4 and sum(len(t) == 1 for t in tokens) / len(tokens) >= 0.7:
+        return "".join(tokens)
+    return line
+
+
+def is_explicit_heading(line: str) -> bool:
+    """Título que casa um padrão explícito de capítulo (Capítulo N, romanos),
+    inclusive com letras espaçadas."""
+    line = line.strip()
+    if not line or len(line) > 60:
+        return False
+    if any(rx.match(line) for rx in _CHAPTER_RES):
+        return True
+    despaced = _despace(line)
+    return despaced != line and any(rx.match(despaced) for rx in _CHAPTER_DESPACED_RES)
+
+
+def classify_titles(items: list[LayoutItem]) -> tuple[list[ParagraphKind], list[str]]:
+    """Precedência de títulos sobre LayoutItem[], genérica entre conversores
+    que já produzem um sinal fraco de título via `label is LayoutLabel.titulo`
+    (hoje só o Docling; a rota pdf_loader ainda decide por conta própria —
+    ver canonical.classify_headings — até migrar para a camada comum).
+
+    Título explícito (is_explicit_heading) é sinal forte: com algum presente
+    no documento, só eles numeram capítulos. Sinal fraco do layout sem
+    explícito por perto vira texto com alerta; logo depois de um título,
+    promove a subtítulo. Sem nenhum explícito, o sinal fraco numera, com
+    alerta-resumo."""
+    kinds: list[ParagraphKind] = []
+    alerts: list[str] = []
+    has_explicit = any(is_explicit_heading(it.text) for it in items)
+    previous_was_title = False
+    for it in items:
+        if is_explicit_heading(it.text):
+            kinds.append(ParagraphKind.titulo)
+            previous_was_title = True
+            continue
+        if it.label is LayoutLabel.titulo:
+            if not has_explicit:
+                kinds.append(ParagraphKind.titulo)
+                previous_was_title = True
+                continue
+            if previous_was_title:
+                kinds.append(ParagraphKind.subtitulo)
+                previous_was_title = False
+                continue
+            alerts.append(f'título do layout não numerado como capítulo: "{it.text[:60]}"')
+        kinds.append(ParagraphKind.texto)
+        previous_was_title = False
+
+    if not has_explicit and any(it.label is LayoutLabel.titulo for it in items):
+        alerts.append(
+            "capítulos vindos só do layout do Docling — confirmar na revisão"
+        )
+    return kinds, alerts
