@@ -22,6 +22,9 @@ dev = [
     "pydantic>=2.9",
     "pydeps>=1.12",
     "vulture>=2.11",
+    # só para o teste de exaustividade do mapa de rótulos do Docling
+    # (B04d B.2); o serviço docling roda isolado, com a imagem própria.
+    "docling-core>=2.106,<3.0",
 ]
 
 [build-system]

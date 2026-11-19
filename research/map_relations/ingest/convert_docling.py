@@ -10,12 +10,18 @@ guarda seu docling.json (pages_XXXX-YYYY.json). DoclingDocument.concatenate
 renumera as páginas — perde a página absoluta —, então a junção é feita aqui,
 no nível dos itens: extrai cada faixa com página absoluta, aplica a regra de
 parágrafo que atravessa página na fronteira e só então classifica (a
-precedência de títulos precisa enxergar o documento inteiro)."""
+precedência de títulos precisa enxergar o documento inteiro).
+
+B04d (Opção B): os itens já chegam como LayoutItem da camada comum
+(ingest/layout.py); o rótulo nativo do Docling é traduzido por
+DOCLING_LABEL_MAP. bbox, marker, level e content_layer são capturados mas
+ainda não usados por nenhuma regra (fases 0-4 são refatoração pura; a regra
+da faixa do corpo entra só na fase 5)."""
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import replace
 from typing import Any
 
 from map_relations.core.ingest_contract import (
@@ -25,9 +31,49 @@ from map_relations.core.ingest_contract import (
 )
 
 from .canonical import is_explicit_heading
+from .layout import LayoutItem, LayoutLabel, normalize_bbox, renumber, resolve_label
 from .markdown import MdBlock
 
-_HEADER_LABELS = {"title", "section_header"}
+# Mapa de rótulos nativos do Docling (docling_core.types.doc.labels.DocItemLabel,
+# versão pinada no serviço — ADR B04d B.2) para LayoutLabel. Exaustivo: todo
+# valor do enum tem entrada aqui (testado em test_layout.py, L4), para uma
+# versão nova do Docling aparecer na revisão em vez de desaparecer em silêncio.
+DOCLING_LABEL_MAP: dict[str, LayoutLabel] = {
+    "title": LayoutLabel.titulo,
+    "section_header": LayoutLabel.titulo,
+    "text": LayoutLabel.texto,
+    "paragraph": LayoutLabel.texto,
+    "list_item": LayoutLabel.lista,
+    "marker": LayoutLabel.lista,
+    "page_header": LayoutLabel.cabecalho,
+    "page_footer": LayoutLabel.rodape,
+    "footnote": LayoutLabel.nota,
+    "caption": LayoutLabel.nota,
+    "table": LayoutLabel.tabela,
+    "picture": LayoutLabel.figura,
+    "chart": LayoutLabel.figura,
+    "formula": LayoutLabel.texto,
+    "code": LayoutLabel.texto,
+    "document_index": LayoutLabel.texto,
+    "reference": LayoutLabel.texto,
+    "checkbox_selected": LayoutLabel.desconhecido,
+    "checkbox_unselected": LayoutLabel.desconhecido,
+    "form": LayoutLabel.desconhecido,
+    "key_value_region": LayoutLabel.desconhecido,
+    "field_heading": LayoutLabel.desconhecido,
+    "field_hint": LayoutLabel.desconhecido,
+    "field_item": LayoutLabel.desconhecido,
+    "field_key": LayoutLabel.desconhecido,
+    "field_region": LayoutLabel.desconhecido,
+    "field_value": LayoutLabel.desconhecido,
+    "empty_value": LayoutLabel.desconhecido,
+    "grading_scale": LayoutLabel.desconhecido,
+    "handwritten_text": LayoutLabel.desconhecido,
+}
+
+# Rótulos nativos que, hoje, são sempre removidos como moldura de página
+# (fases 0-4: comportamento idêntico ao de antes do B04d — a regra da faixa
+# do corpo, que mantém o item quando está dentro da faixa, é só a fase 5).
 _EDGE_LABELS = {
     "page_header": RemovalReason.cabecalho,
     "page_footer": RemovalReason.rodape,
@@ -35,13 +81,6 @@ _EDGE_LABELS = {
 # pontuação que encerra parágrafo: se o item anterior termina assim, não é
 # continuação de um parágrafo cortado na fronteira da faixa
 _SENTENCE_END = ('.', '!', '?', ':', ';', '"', '»', ')', ']', '…')
-
-
-@dataclass
-class DoclingItem:
-    label: str
-    text: str
-    page: int | None
 
 
 def _reading_order(doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -76,30 +115,82 @@ def _first_page(item: dict[str, Any]) -> int | None:
     return min(pages) if pages else None
 
 
+def _page_sizes(doc: dict[str, Any]) -> dict[int, tuple[float, float]]:
+    sizes: dict[int, tuple[float, float]] = {}
+    for key, page in (doc.get("pages") or {}).items():
+        size = (page or {}).get("size") or {}
+        if "width" in size and "height" in size:
+            sizes[int(key)] = (size["width"], size["height"])
+    return sizes
+
+
+def _item_bbox(item: dict[str, Any], page_sizes: dict[int, tuple[float, float]]) -> Any:
+    """bbox normalizada do primeiro prov com bbox e tamanho de página conhecido;
+    None quando falta geometria (sempre o caso hoje: a conversão roda com
+    page-batch-size 1 e os JSONs sintéticos de teste não têm bbox nem size)."""
+    for prov in item.get("prov", []):
+        bbox = prov.get("bbox")
+        page_no = prov.get("page_no")
+        if not bbox or page_no not in page_sizes:
+            continue
+        width, height = page_sizes[page_no]
+        return normalize_bbox(
+            left=bbox.get("l", 0),
+            top=bbox.get("t", 0),
+            right=bbox.get("r", 0),
+            bottom=bbox.get("b", 0),
+            page_width=width,
+            page_height=height,
+        )
+    return None
+
+
 def docling_items(
     doc: dict[str, Any],
-) -> tuple[list[DoclingItem], list[RemovedItem], int]:
+) -> tuple[list[LayoutItem], list[RemovedItem], list[str], int]:
     """Extrai itens (sem classificar) com página absoluta e remoções de borda."""
-    items: list[DoclingItem] = []
+    items: list[LayoutItem] = []
     removed: list[RemovedItem] = []
+    alerts: list[str] = []
+    page_sizes = _page_sizes(doc)
+    order = 0
     for item in _reading_order(doc):
-        label = item.get("label", "text")
+        source_label = item.get("label", "text")
         text = _flat(item.get("text") or "")
         if not text:
             continue
-        if label in _EDGE_LABELS:
+        if source_label in _EDGE_LABELS:
             removed.append(
                 RemovedItem(
-                    page=_first_page(item) or 0, reason=_EDGE_LABELS[label], text=text
+                    page=_first_page(item) or 0,
+                    reason=_EDGE_LABELS[source_label],
+                    text=text,
                 )
             )
             continue
-        items.append(DoclingItem(label, text, _first_page(item)))
+        label, alert = resolve_label(source_label, DOCLING_LABEL_MAP)
+        if alert:
+            alerts.append(alert)
+        items.append(
+            LayoutItem(
+                order=order,
+                label=label,
+                text=text,
+                source_label=source_label,
+                converter="docling",
+                page=_first_page(item),
+                bbox=_item_bbox(item, page_sizes),
+                marker=item.get("marker"),
+                level=item.get("level"),
+                furniture_hint=item.get("content_layer") == "furniture",
+            )
+        )
+        order += 1
     pages = len(doc.get("pages", {}) or {})
-    return items, removed, pages
+    return items, removed, alerts, pages
 
 
-def items_to_blocks(items: list[DoclingItem]) -> tuple[list[MdBlock], list[str]]:
+def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
     """Classifica os itens já unidos em blocos (precedência global de títulos)."""
     blocks: list[MdBlock] = []
     alerts: list[str] = []
@@ -110,7 +201,7 @@ def items_to_blocks(items: list[DoclingItem]) -> tuple[list[MdBlock], list[str]]
             blocks.append(MdBlock(it.text, ParagraphKind.titulo, it.page))
             previous_was_title = True
             continue
-        if it.label in _HEADER_LABELS:
+        if it.label is LayoutLabel.titulo:
             if not has_explicit:
                 blocks.append(MdBlock(it.text, ParagraphKind.titulo, it.page))
                 previous_was_title = True
@@ -123,7 +214,7 @@ def items_to_blocks(items: list[DoclingItem]) -> tuple[list[MdBlock], list[str]]
         blocks.append(MdBlock(it.text, ParagraphKind.texto, it.page))
         previous_was_title = False
 
-    if not has_explicit and any(it.label in _HEADER_LABELS for it in items):
+    if not has_explicit and any(it.label is LayoutLabel.titulo for it in items):
         alerts.append(
             "capítulos vindos só do layout do Docling — confirmar na revisão"
         )
@@ -152,33 +243,34 @@ def merge_range_docs(
     """Junta faixas no nível dos itens, com página absoluta, aplicando a regra
     de parágrafo que atravessa página na fronteira entre faixas. Só depois
     classifica, para a precedência de títulos ver o documento inteiro."""
-    merged: list[DoclingItem] = []
+    merged: list[LayoutItem] = []
     removed: list[RemovedItem] = []
+    item_alerts: list[str] = []
     total_pages = 0
     for doc in docs:
-        items, rem, pages = docling_items(doc)
+        items, rem, alerts, pages = docling_items(doc)
         removed.extend(rem)
+        item_alerts.extend(alerts)
         total_pages += pages
         if merged and items:
             prev, nxt = merged[-1], items[0]
             if (
-                prev.label == "text"
-                and nxt.label == "text"
+                prev.label is LayoutLabel.texto
+                and nxt.label is LayoutLabel.texto
                 and _continues_paragraph(prev.text, nxt.text)
             ):
-                merged[-1] = DoclingItem(
-                    "text", _join_paragraph(prev.text, nxt.text), prev.page
-                )
+                merged[-1] = replace(prev, text=_join_paragraph(prev.text, nxt.text))
                 items = items[1:]
         merged.extend(items)
-    blocks, alerts = items_to_blocks(merged)
-    return blocks, removed, alerts, total_pages
+    merged = renumber(merged)
+    blocks, block_alerts = items_to_blocks(merged)
+    return blocks, removed, item_alerts + block_alerts, total_pages
 
 
 def docling_to_blocks(
     doc: dict[str, Any],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
     """Faixa única: extrai, classifica e devolve (blocos, removidos, alertas, páginas)."""
-    items, removed, pages = docling_items(doc)
-    blocks, alerts = items_to_blocks(items)
-    return blocks, removed, alerts, pages
+    items, removed, item_alerts, pages = docling_items(doc)
+    blocks, block_alerts = items_to_blocks(items)
+    return blocks, removed, item_alerts + block_alerts, pages

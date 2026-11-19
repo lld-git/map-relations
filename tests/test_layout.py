@@ -1,6 +1,9 @@
-"""Camada comum de layout (B04d, Opção B, fase 0): BBox, LayoutLabel e
-LayoutItem — estrutura ainda sem uso pelos conversores."""
+"""Camada comum de layout (B04d, Opção B): BBox, LayoutLabel, LayoutItem
+(fase 0) e o mapa de rótulos do adaptador Docling (fase 1)."""
 
+from docling_core.types.doc.labels import DocItemLabel
+
+from map_relations.ingest.convert_docling import DOCLING_LABEL_MAP
 from map_relations.ingest.layout import (
     LayoutItem,
     LayoutLabel,
@@ -56,3 +59,44 @@ def test_renumber_makes_order_contiguous_regardless_of_input():
     out = renumber(items)
     assert [it.order for it in out] == [0, 1, 2]
     assert [it.text for it in out] == ["a", "b", "c"]  # ordem da lista preservada
+
+
+# ── L4: mapa de rótulos do Docling (B.2) ─────────────────────────────────────
+
+
+def test_docling_label_map_covers_every_doc_item_label():
+    """Exaustividade: uma versão nova do Docling com rótulo novo deve falhar
+    aqui, não desaparecer em silêncio via resolve_label/desconhecido."""
+    native_labels = {member.value for member in DocItemLabel}
+    assert native_labels == set(DOCLING_LABEL_MAP)
+
+
+def test_docling_label_map_matches_table_b2():
+    expected = {
+        "title": LayoutLabel.titulo,
+        "section_header": LayoutLabel.titulo,
+        "text": LayoutLabel.texto,
+        "paragraph": LayoutLabel.texto,
+        "list_item": LayoutLabel.lista,
+        "marker": LayoutLabel.lista,
+        "page_header": LayoutLabel.cabecalho,
+        "page_footer": LayoutLabel.rodape,
+        "footnote": LayoutLabel.nota,
+        "caption": LayoutLabel.nota,
+        "table": LayoutLabel.tabela,
+        "picture": LayoutLabel.figura,
+        "chart": LayoutLabel.figura,
+        "formula": LayoutLabel.texto,
+        "code": LayoutLabel.texto,
+        "document_index": LayoutLabel.texto,
+        "reference": LayoutLabel.texto,
+        "checkbox_selected": LayoutLabel.desconhecido,
+        "checkbox_unselected": LayoutLabel.desconhecido,
+        "form": LayoutLabel.desconhecido,
+        "key_value_region": LayoutLabel.desconhecido,
+        "empty_value": LayoutLabel.desconhecido,
+        "grading_scale": LayoutLabel.desconhecido,
+        "handwritten_text": LayoutLabel.desconhecido,
+    }
+    for native, label in expected.items():
+        assert DOCLING_LABEL_MAP[native] is label
