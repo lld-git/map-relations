@@ -7,6 +7,7 @@ from map_relations.ingest.convert_docling import DOCLING_LABEL_MAP
 from map_relations.ingest.layout import (
     LayoutItem,
     LayoutLabel,
+    join_crossing_items,
     normalize_bbox,
     renumber,
     resolve_label,
@@ -100,3 +101,53 @@ def test_docling_label_map_matches_table_b2():
     }
     for native, label in expected.items():
         assert DOCLING_LABEL_MAP[native] is label
+
+
+# ── junção de parágrafo na fronteira entre faixas ────────────────────────────
+
+
+def _texto(order: int, text: str, page: int | None = None) -> LayoutItem:
+    return LayoutItem(
+        order=order, label=LayoutLabel.texto, text=text,
+        source_label="text", converter="docling", page=page,
+    )
+
+
+def _titulo(order: int, text: str, page: int | None = None) -> LayoutItem:
+    return LayoutItem(
+        order=order, label=LayoutLabel.titulo, text=text,
+        source_label="section_header", converter="docling", page=page,
+    )
+
+
+def test_join_crossing_items_rejoins_sentence_cut_at_boundary():
+    a = [_texto(0, "Josef K. aguardou em silêncio e o caso seguiu sem", page=2)]
+    b = [_texto(0, "resolução por semanas a fio.", page=3)]
+    out = join_crossing_items([a, b])
+    assert [it.text for it in out] == [
+        "Josef K. aguardou em silêncio e o caso seguiu sem resolução por semanas a fio."
+    ]
+
+
+def test_join_crossing_items_dehyphenates_at_boundary():
+    a = [_texto(0, "Foi um primeiro inter-", page=2)]
+    b = [_texto(0, "rogatório demorado.", page=3)]
+    out = join_crossing_items([a, b])
+    assert out[0].text == "Foi um primeiro interrogatório demorado."
+
+
+def test_join_crossing_items_keeps_complete_sentences_split():
+    a = [_texto(0, "Terminava ali o primeiro dia.", page=2)]
+    b = [_texto(0, "Na manhã seguinte tudo recomeçou.", page=3)]
+    out = join_crossing_items([a, b])
+    assert [it.text for it in out] == [
+        "Terminava ali o primeiro dia.",
+        "Na manhã seguinte tudo recomeçou.",
+    ]
+
+
+def test_join_crossing_items_never_joins_a_title():
+    a = [_texto(0, "fim do trecho sem ponto", page=2)]
+    b = [_titulo(0, "Capítulo II", page=3)]
+    out = join_crossing_items([a, b])
+    assert [it.text for it in out] == ["fim do trecho sem ponto", "Capítulo II"]

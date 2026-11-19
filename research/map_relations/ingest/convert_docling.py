@@ -21,7 +21,6 @@ da faixa do corpo entra só na fase 5)."""
 from __future__ import annotations
 
 import re
-from dataclasses import replace
 from typing import Any
 
 from map_relations.core.ingest_contract import (
@@ -31,7 +30,14 @@ from map_relations.core.ingest_contract import (
 )
 
 from .canonical import is_explicit_heading
-from .layout import LayoutItem, LayoutLabel, normalize_bbox, renumber, resolve_label
+from .layout import (
+    LayoutItem,
+    LayoutLabel,
+    join_crossing_items,
+    normalize_bbox,
+    renumber,
+    resolve_label,
+)
 from .markdown import MdBlock
 
 # Mapa de rótulos nativos do Docling (docling_core.types.doc.labels.DocItemLabel,
@@ -78,9 +84,6 @@ _EDGE_LABELS = {
     "page_header": RemovalReason.cabecalho,
     "page_footer": RemovalReason.rodape,
 }
-# pontuação que encerra parágrafo: se o item anterior termina assim, não é
-# continuação de um parágrafo cortado na fronteira da faixa
-_SENTENCE_END = ('.', '!', '?', ':', ';', '"', '»', ')', ']', '…')
 
 
 def _reading_order(doc: dict[str, Any]) -> list[dict[str, Any]]:
@@ -221,48 +224,23 @@ def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
     return blocks, alerts
 
 
-def _continues_paragraph(prev: str, nxt: str) -> bool:
-    """O item anterior parece um parágrafo cortado que segue no próximo?
-    Mesma ideia da regra de página do pdf_loader, aplicada na fronteira da faixa."""
-    if not prev or not nxt:
-        return False
-    if prev.endswith("-"):
-        return True
-    return not prev.endswith(_SENTENCE_END) and nxt[:1].islower()
-
-
-def _join_paragraph(prev: str, nxt: str) -> str:
-    if prev.endswith("-"):
-        return prev[:-1] + nxt  # palavra hifenizada atravessa a fronteira
-    return f"{prev} {nxt}"
-
-
 def merge_range_docs(
     docs: list[dict[str, Any]],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
     """Junta faixas no nível dos itens, com página absoluta, aplicando a regra
     de parágrafo que atravessa página na fronteira entre faixas. Só depois
     classifica, para a precedência de títulos ver o documento inteiro."""
-    merged: list[LayoutItem] = []
     removed: list[RemovedItem] = []
     item_alerts: list[str] = []
     total_pages = 0
+    ranges: list[list[LayoutItem]] = []
     for doc in docs:
         items, rem, alerts, pages = docling_items(doc)
         removed.extend(rem)
         item_alerts.extend(alerts)
         total_pages += pages
-        if merged and items:
-            prev, nxt = merged[-1], items[0]
-            if (
-                prev.label is LayoutLabel.texto
-                and nxt.label is LayoutLabel.texto
-                and _continues_paragraph(prev.text, nxt.text)
-            ):
-                merged[-1] = replace(prev, text=_join_paragraph(prev.text, nxt.text))
-                items = items[1:]
-        merged.extend(items)
-    merged = renumber(merged)
+        ranges.append(items)
+    merged = renumber(join_crossing_items(ranges))
     blocks, block_alerts = items_to_blocks(merged)
     return blocks, removed, item_alerts + block_alerts, total_pages
 

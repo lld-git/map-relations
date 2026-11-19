@@ -98,3 +98,44 @@ def renumber(items: list[LayoutItem]) -> list[LayoutItem]:
     de juntar faixas, nenhuma regra pode depender da posição na lista
     original, só do campo `order`."""
     return [replace(it, order=i) for i, it in enumerate(items)]
+
+
+# pontuação que encerra parágrafo: se o item anterior termina assim, não é
+# continuação de um parágrafo cortado na fronteira de uma faixa/página.
+_SENTENCE_END = (".", "!", "?", ":", ";", '"', "»", ")", "]", "…")
+
+
+def _continues_paragraph(prev: str, nxt: str) -> bool:
+    """O item anterior parece um parágrafo cortado que segue no próximo?"""
+    if not prev or not nxt:
+        return False
+    if prev.endswith("-"):
+        return True
+    return not prev.endswith(_SENTENCE_END) and nxt[:1].islower()
+
+
+def _join_paragraph(prev: str, nxt: str) -> str:
+    if prev.endswith("-"):
+        return prev[:-1] + nxt  # palavra hifenizada atravessa a fronteira
+    return f"{prev} {nxt}"
+
+
+def join_crossing_items(ranges: list[list[LayoutItem]]) -> list[LayoutItem]:
+    """Junta o item de texto cortado na fronteira entre faixas consecutivas
+    (página sem pontuação final seguida de minúscula, ou hífen) — só entre
+    faixas; itens dentro da mesma faixa não são tocados. Nunca junta quando
+    um dos lados é título: o sinal (`LayoutLabel.texto` nos dois lados) já
+    garante isso, porque um título nunca tem esse rótulo."""
+    merged: list[LayoutItem] = []
+    for items in ranges:
+        if merged and items:
+            prev, nxt = merged[-1], items[0]
+            if (
+                prev.label is LayoutLabel.texto
+                and nxt.label is LayoutLabel.texto
+                and _continues_paragraph(prev.text, nxt.text)
+            ):
+                merged[-1] = replace(prev, text=_join_paragraph(prev.text, nxt.text))
+                items = items[1:]
+        merged.extend(items)
+    return merged
