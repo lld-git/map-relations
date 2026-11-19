@@ -4,6 +4,7 @@
 from docling_core.types.doc.labels import DocItemLabel
 
 from map_relations.core.ingest_contract import ParagraphKind, RemovalReason
+from map_relations.ingest.canonical import layout_items_to_blocks
 from map_relations.ingest.convert_docling import DOCLING_LABEL_MAP
 from map_relations.ingest.layout import (
     LayoutItem,
@@ -252,3 +253,30 @@ def test_drop_page_furniture_ignores_items_without_page():
     kept, removed, _ = drop_page_furniture(items)
     assert kept == items
     assert removed == []
+
+
+# ── E1: equivalência entre conversores (fase 3/4) ──────────────────────────
+
+
+def test_same_layout_items_produce_same_blocks_regardless_of_converter():
+    """Nenhuma regra do pós-processamento comum ramifica em `converter` ou
+    `source_label`: só campos de diagnóstico (plano B04d, LayoutItem B.1)."""
+
+    def _items(converter: str, source_label: str) -> list[LayoutItem]:
+        return [
+            LayoutItem(
+                order=0, label=LayoutLabel.texto, text="Capítulo I",
+                source_label=source_label, converter=converter,
+            ),
+            LayoutItem(
+                order=1, label=LayoutLabel.texto, text="Josef K. entrou na sala.",
+                source_label=source_label, converter=converter,
+            ),
+        ]
+
+    blocks_a, alerts_a = layout_items_to_blocks([_items("docling", "section_header")])
+    blocks_b, alerts_b = layout_items_to_blocks([_items("pdf_loader", "paragraph")])
+    assert [(b.text, b.kind, b.page) for b in blocks_a] == [
+        (b.text, b.kind, b.page) for b in blocks_b
+    ]
+    assert alerts_a == alerts_b

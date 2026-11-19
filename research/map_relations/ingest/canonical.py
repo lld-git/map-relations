@@ -198,6 +198,23 @@ def _page_items(cleaned_pages: list[str]) -> list[list[LayoutItem]]:
     return ranges
 
 
+def layout_items_to_blocks(ranges: list[list[LayoutItem]]) -> tuple[list[MdBlock], list[str]]:
+    """Pós-processamento comum entre conversores sem rótulo nativo de título
+    (pdf_loader, TXT, pandoc): junta item cortado na fronteira entre páginas
+    ou faixas (`join_crossing_items` — sem efeito quando há uma só faixa,
+    como em TXT e pandoc) e classifica títulos pela precedência de
+    `classify_headings`, sobre o texto já unido. `it.page` é `None` para TXT
+    e pandoc; carregado adiante só por uniformidade com o MdBlock."""
+    merged = renumber(join_crossing_items(ranges))
+    blocks = [MdBlock(it.text, page=it.page) for it in merged]
+
+    is_heading, alerts = classify_headings([b.text for b in blocks])
+    for block, heading in zip(blocks, is_heading):
+        if heading:
+            block.kind = ParagraphKind.titulo
+    return blocks, alerts
+
+
 def pdf_pages_to_blocks(
     raw_pages: list[str],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str]]:
@@ -207,14 +224,7 @@ def pdf_pages_to_blocks(
     de bloco, exceto quando a página termina com hífen (palavra atravessa) —
     agora via layout.join_crossing_items, a mesma regra da rota Docling."""
     cleaned_pages, removed, alerts = _clean_pages(raw_pages)
-
-    merged = renumber(join_crossing_items(_page_items(cleaned_pages)))
-    blocks = [MdBlock(it.text, page=it.page) for it in merged]
-
-    is_heading, heading_alerts = classify_headings([b.text for b in blocks])
-    for block, heading in zip(blocks, is_heading):
-        if heading:
-            block.kind = ParagraphKind.titulo
+    blocks, heading_alerts = layout_items_to_blocks(_page_items(cleaned_pages))
     alerts.extend(heading_alerts)
     return blocks, removed, alerts
 

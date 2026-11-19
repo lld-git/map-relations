@@ -3,7 +3,12 @@
 Experimental (ADR 008): o pandoc gera CommonMark; daqui tiramos só o
 subconjunto da convenção — linhas de título (#) e parágrafos. Escapes do
 próprio pandoc são removidos para o texto voltar literal.
-"""
+
+B04d fase 4: adaptador sem `page` nem `bbox` para a camada comum — vira
+LayoutItem numa só faixa e usa canonical.layout_items_to_blocks para a
+precedência de títulos explícitos; o título nativo do pandoc (`#`) é um
+sinal à parte, sempre título, aplicado depois (OR, não entra na
+precedência de classify_headings)."""
 
 from __future__ import annotations
 
@@ -13,7 +18,8 @@ from pathlib import Path
 
 from map_relations.core.ingest_contract import ParagraphKind, RemovedItem
 
-from .canonical import classify_headings
+from .canonical import layout_items_to_blocks
+from .layout import LayoutItem, LayoutLabel
 from .markdown import MdBlock
 
 _PANDOC_ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!<>\"'~])")
@@ -46,16 +52,16 @@ def pandoc_md_to_blocks(
             if flat:
                 paragraphs.append((flat, False))
 
-    texts = [t for t, _ in paragraphs]
-    explicit_heading, alerts = classify_headings(texts)
-    blocks: list[MdBlock] = []
-    for (text, pandoc_heading), explicit in zip(paragraphs, explicit_heading):
-        kind = (
-            ParagraphKind.titulo
-            if explicit or pandoc_heading
-            else ParagraphKind.texto
+    items = [
+        LayoutItem(
+            order=i, label=LayoutLabel.texto, text=t, source_label="paragraph", converter="pandoc"
         )
-        blocks.append(MdBlock(text, kind))
+        for i, (t, _) in enumerate(paragraphs)
+    ]
+    blocks, alerts = layout_items_to_blocks([items])
+    for block, (_, pandoc_heading) in zip(blocks, paragraphs):
+        if pandoc_heading:
+            block.kind = ParagraphKind.titulo
     return blocks, [], alerts
 
 
