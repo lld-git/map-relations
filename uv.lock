@@ -1022,7 +1022,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "docling-core", specifier = ">=2.106,<3.0" },
+    { name = "docling-core", specifier = "==2.107.1" },
     { name = "mypy", specifier = ">=1.11" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pydeps", specifier = ">=1.12" },
