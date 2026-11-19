@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import enum
 import re
+from collections import Counter
 from dataclasses import dataclass, replace
 
-from map_relations.core.ingest_contract import ParagraphKind
+from map_relations.core.ingest_contract import ParagraphKind, RemovalReason, RemovedItem
 
 
 class LayoutLabel(enum.StrEnum):
@@ -217,3 +218,71 @@ def classify_titles(items: list[LayoutItem]) -> tuple[list[ParagraphKind], list[
             "capítulos vindos só do layout do Docling — confirmar na revisão"
         )
     return kinds, alerts
+
+
+# Linha repetida no início/fim de pelo menos esta fração das páginas é
+# tratada como cabeçalho/rodapé.
+_REPEAT_THRESHOLD = 0.6
+
+_PAGE_NUMBER_RE = re.compile(r"^[\s\-–—]*\d{1,4}[\s\-–—]*$")
+
+
+def _normalize_line(line: str) -> str:
+    return re.sub(r"\s+", " ", line).strip()
+
+
+def _page_edges(items: list[LayoutItem]) -> dict[int, tuple[LayoutItem, LayoutItem]]:
+    """Primeiro e último item de cada página, por `order` dentro da página
+    (não pela posição na lista — única fonte de ordem é o campo `order`)."""
+    by_page: dict[int, list[LayoutItem]] = {}
+    for it in items:
+        if it.page is not None:
+            by_page.setdefault(it.page, []).append(it)
+    edges = {}
+    for page, page_items in by_page.items():
+        ordered = sorted(page_items, key=lambda it: it.order)
+        edges[page] = (ordered[0], ordered[-1])
+    return edges
+
+
+def drop_page_furniture(
+    items: list[LayoutItem],
+) -> tuple[list[LayoutItem], list[RemovedItem], list[str]]:
+    """Remove cabeçalho/rodapé repetidos e número de página das bordas de
+    cada página (primeiro/último item por `page` + `order`), pela mesma
+    regra de repetição entre páginas de antes — generalizada para operar
+    sobre LayoutItem em vez de "primeira/última linha da lista" de uma
+    página em `list[str]`. Itens sem página (`page is None`) nunca são
+    tocados: não há borda de página para eles."""
+    edges = _page_edges(items)
+    removed: list[RemovedItem] = []
+    alerts: list[str] = []
+    if len(edges) < 3:
+        return list(items), removed, alerts
+
+    threshold = max(2, int(len(edges) * _REPEAT_THRESHOLD))
+    tops = Counter(_normalize_line(first.text) for first, _ in edges.values())
+    bottoms = Counter(_normalize_line(last.text) for _, last in edges.values())
+    headers = {line for line, n in tops.items() if n >= threshold and line}
+    footers = {line for line, n in bottoms.items() if n >= threshold and line}
+
+    drop_ids: set[int] = set()  # por `order`, que é único no documento
+    for page, (first, last) in edges.items():
+        norm_first = _normalize_line(first.text)
+        norm_last = _normalize_line(last.text)
+        if norm_first in headers:
+            drop_ids.add(first.order)
+            removed.append(RemovedItem(page=page, reason=RemovalReason.cabecalho, text=norm_first))
+        if last is not first and norm_last in footers:
+            drop_ids.add(last.order)
+            removed.append(RemovedItem(page=page, reason=RemovalReason.rodape, text=norm_last))
+        for candidate in dict.fromkeys((first, last)):  # dedupe preservando ordem
+            norm = _normalize_line(candidate.text)
+            if candidate.order not in drop_ids and _PAGE_NUMBER_RE.match(norm):
+                drop_ids.add(candidate.order)
+                removed.append(
+                    RemovedItem(page=page, reason=RemovalReason.numero_pagina, text=norm)
+                )
+
+    kept = [it for it in items if it.order not in drop_ids]
+    return kept, removed, alerts

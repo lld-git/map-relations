@@ -3,12 +3,13 @@
 
 from docling_core.types.doc.labels import DocItemLabel
 
-from map_relations.core.ingest_contract import ParagraphKind
+from map_relations.core.ingest_contract import ParagraphKind, RemovalReason
 from map_relations.ingest.convert_docling import DOCLING_LABEL_MAP
 from map_relations.ingest.layout import (
     LayoutItem,
     LayoutLabel,
     classify_titles,
+    drop_page_furniture,
     join_crossing_items,
     normalize_bbox,
     renumber,
@@ -187,3 +188,67 @@ def test_classify_titles_weak_signal_right_after_title_becomes_subtitle():
     ]
     kinds, _ = classify_titles(items)
     assert kinds == [ParagraphKind.titulo, ParagraphKind.subtitulo, ParagraphKind.texto]
+
+
+# ── bordas repetidas e número de página (fase 2.3) ───────────────────────────
+
+
+def test_drop_page_furniture_removes_repeated_header_and_footer():
+    items = [
+        _texto(0, "O Processo — Kafka", page=1),
+        _texto(1, "Primeiro parágrafo.", page=1),
+        _texto(2, "rodapé comum", page=1),
+        _texto(3, "O Processo — Kafka", page=2),
+        _texto(4, "Segundo parágrafo.", page=2),
+        _texto(5, "rodapé comum", page=2),
+        _texto(6, "O Processo — Kafka", page=3),
+        _texto(7, "Terceiro parágrafo.", page=3),
+        _texto(8, "rodapé comum", page=3),
+    ]
+    kept, removed, _ = drop_page_furniture(items)
+    assert [it.text for it in kept] == [
+        "Primeiro parágrafo.", "Segundo parágrafo.", "Terceiro parágrafo.",
+    ]
+    assert {r.reason for r in removed} == {RemovalReason.cabecalho, RemovalReason.rodape}
+    assert len(removed) == 6
+
+
+def test_drop_page_furniture_removes_page_number_labeled_as_text():
+    items = [
+        _texto(0, "Primeiro parágrafo.", page=1),
+        _texto(1, "1", page=1),
+        _texto(2, "Segundo parágrafo.", page=2),
+        _texto(3, "2", page=2),
+        _texto(4, "Terceiro parágrafo.", page=3),
+        _texto(5, "3", page=3),
+    ]
+    kept, removed, _ = drop_page_furniture(items)
+    assert [it.text for it in kept] == [
+        "Primeiro parágrafo.", "Segundo parágrafo.", "Terceiro parágrafo.",
+    ]
+    assert all(r.reason is RemovalReason.numero_pagina for r in removed)
+
+
+def test_drop_page_furniture_keeps_number_in_middle_of_page():
+    items = [
+        _texto(0, "Começa o capítulo 1 com uma frase.", page=1),
+        _texto(1, "Começa o capítulo 2 com outra frase.", page=2),
+        _texto(2, "Começa o capítulo 3 com mais uma frase.", page=3),
+    ]
+    kept, removed, _ = drop_page_furniture(items)
+    assert len(kept) == 3
+    assert removed == []
+
+
+def test_drop_page_furniture_short_document_keeps_everything():
+    items = [_texto(0, "Única página.", page=1)]
+    kept, removed, _ = drop_page_furniture(items)
+    assert kept == items
+    assert removed == []
+
+
+def test_drop_page_furniture_ignores_items_without_page():
+    items = [_texto(0, "sem página alguma")]
+    kept, removed, _ = drop_page_furniture(items)
+    assert kept == items
+    assert removed == []
