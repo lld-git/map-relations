@@ -48,7 +48,7 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Em andamento
 
-- **B04d (Opção B, fases 0-2)** — branch `b04d-cabecalho`. Camada comum de
+- **B04d (Opção B, fases 0-5)** — branch `b04d-cabecalho`. Camada comum de
   layout entre conversores: `ingest/layout.py` com `LayoutItem`/`BBox`/
   `LayoutLabel` (fase 0); adaptador Docling devolve `LayoutItem` via
   `DOCLING_LABEL_MAP` exaustivo sobre `DocItemLabel` — `docling-core` entrou
@@ -57,11 +57,50 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   literalmente) e `drop_page_furniture` saem do Docling/`canonical.py` para
   `layout.py`, um commit por regra (fase 2). `is_explicit_heading`/`_despace`
   também saíram de `canonical.py` para `layout.py`; `canonical.py` mantém os
-  dois como re-export. Fases 0-4 são refatoração pura: nenhum teste existente
-  foi editado. Plano completo: [docs/plans/B04d.md](plans/B04d.md).
+  dois como re-export.
+  Fase 3: `canonical.pdf_pages_to_blocks` vira adaptador — remoção de
+  cabeçalho/rodapé/número de página passa a `layout.drop_page_furniture`
+  (sobre a 1ª/última linha não vazia de cada página) e a junção de parágrafo
+  entre páginas passa a `layout.join_crossing_items`; `classify_headings`
+  (precedência de títulos do pdf_loader) fica onde estava — as mensagens de
+  alerta são literalmente diferentes das do Docling, e `test_ingest_contract`
+  confere o texto do pdf_loader.
+  Fase 4: extraído `canonical.layout_items_to_blocks` (o pós-processamento
+  comum que `pdf_pages_to_blocks` já fazia); TXT e pandoc passam a usá-lo em
+  vez de chamar `classify_headings` direto, virando `LayoutItem` numa só
+  faixa, sem `page` nem `bbox` — confirma que isso desliga a regra de borda
+  sem caso especial.
+  Fase 5 (regra nova, Opção A): `layout.compute_body_band` (percentis 5º/95º
+  das bboxes dos itens de corpo do documento inteiro; não confiável com
+  menos de 3 páginas com bbox) e `layout.apply_body_band` — cabeçalho/rodapé
+  **dentro** da faixa volta a ser texto, na posição original (com alerta de
+  reclassificação, para o report.md); **fora**, continua removido; número
+  de página fora da faixa é removido mesmo rotulado `text`; dentro, é
+  mantido. Faixa não confiável ou item sem bbox: fallback idêntico a antes
+  da fase 5. `convert_docling.docling_items` parou de remover
+  page_header/page_footer na extração — o item sobrevive como `LayoutItem`
+  para a regra da faixa decidir; `merge_range_docs` calcula a faixa uma vez
+  sobre o documento inteiro (depois do merge de faixas de página do B04c) e
+  só então aplica a cada faixa, antes de `join_crossing_items`.
+  Fases 0-4 são refatoração pura: nenhum teste existente foi editado (209
+  testes verdes: 200 de antes + 9 novos — E1, F1-F7, E3). Plano completo:
+  [docs/plans/B04d.md](plans/B04d.md).
 
 ## Pendências
 
+- B04d fase 6 (último passo do plano): `make compare` sobre qualquer
+  conversor registrado; reconhecimento do MinerU (B.3, sem adaptador) — ADR
+  com os campos reais da saída, licença conferida e custo medido.
+- B04d: regenerar data/processed com o PDF real (o_processo.pdf, já em
+  data/raw/) e colar no relatório do bloco o resumo do ingest e a seção de
+  itens reclassificados do report.md (critério de pronto do plano, item 3)
+  — não rodou nesta sessão (conversão Docling pesada: faixas de 40 páginas,
+  ~2,45 GiB de pico cada, ver B04c).
+- B04d: teste E2 do plano (caso "K." ponta a ponta nas duas rotas) não foi
+  escrito — ver Handoff.
+- B04d: ADR curto registrando a decisão pela Opção B e o motivo (critério de
+  pronto do plano, item 5); docs/architecture.md e docs/mapa ainda não
+  refletem a camada comum (item 6).
 - Leon: adicionar 3–5 PDFs de diagramação variada em data/raw/ e listá-los em
   eval/pdfs/conjunto.txt; depois `make compare-all`.
 - Subtítulo em caixa mista grudado no título pelo Docling (ex.: "C A P Í T U L O
@@ -87,35 +126,47 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 ## Handoff
 
 **Próximo passo exato:** na branch `b04d-cabecalho`, seguir o plano
-[docs/plans/B04d.md](plans/B04d.md) a partir da **fase 3 — rota pdf_loader
-pela camada comum**: `canonical.pdf_pages_to_blocks` vira adaptador;
-`_split_paragraph_blocks` (desifenização, colapso de espaço, isolamento de
-título) fica no adaptador (é texto→itens, não pós-processamento) e passa a
-produzir `LayoutItem` com `page`, sem `bbox`; a regra "quebra de página é
-quebra de bloco, exceto hífen" passa a ser a mesma `layout.join_crossing_items`
-da fase 2.1. Nesse ponto, `canonical._clean_pages`/`_find_repeated_edges`
-também devem trocar para `layout.drop_page_furniture` (fase 2.3 deixou a
-função pronta e testada, mas sem nenhum chamador ainda — `canonical.py` não
-foi tocado de propósito, por depender do adaptador pdf_loader que só a fase
-3 cria). Fase 4 (TXT e pandoc) vem depois, fase 5 é a regra nova (faixa do
-corpo) e fase 6 é comparação + reconhecimento do MinerU. Mesmas regras de
-antes: fases 0-4 não editam teste existente; `make check` e a tarefa ci
-verdes ao fim de cada fase; revisar com o Leon antes de seguir para a fase 5
-(regra de comportamento nova).
+[docs/plans/B04d.md](plans/B04d.md) a partir da **fase 6 — comparação e
+MinerU**: `make compare` sobre qualquer conversor registrado (hoje só aceita
+Docling × pdf_loader); reconhecimento do MinerU Basic (B.3), sem escrever
+adaptador — rodar uma vez sobre o PDF de teste, registrar em `docs/adr` os
+campos reais da saída (`content_list.json`/`middle_json.json`, nome do
+campo, unidade e origem do bbox — a documentação oficial não especifica),
+confirmar a licença no `LICENSE` do repositório e medir o custo (tamanho de
+imagem, tempo por faixa).
 
-Nota de interpretação registrada ao Leon (fases 0-2, não é desvio do plano,
-é uma ambiguidade textual resolvida): o parágrafo da fase 1 diz "furniture_hint
-em vez de _EDGE_LABELS" mas também "capturar [content_layer], não usar" — a
-implementação manteve a remoção de cabeçalho/rodapé pelo rótulo nativo
-(equivalente a `_EDGE_LABELS` de antes) e só capturou `furniture_hint` sem
-usá-lo pra decidir, priorizando "nenhum teste existente muda" sobre a leitura
-literal da primeira frase. Rever se isso bate com a intenção ao chegar na
-fase 5 (onde `furniture_hint`/bbox passam a decidir de verdade).
+Depois da fase 6, falta para o bloco inteiro (critério de pronto do plano):
+regenerar `data/processed` com `o_processo.pdf` (já em `data/raw/`) e colar
+no relatório do bloco o resumo do ingest e a seção de itens reclassificados
+do `report.md` (sem ler arquivos inteiros — `head`/`grep`/offset); ADR curto
+da escolha pela Opção B; `docs/architecture.md` e `docs/mapa` atualizados
+com a camada comum.
+
+**Pendência de teste, não de código:** o plano pede um teste E2 ("K." ponta
+a ponta nas duas rotas: página A termina sem pontuação final, página B abre
+com o falso cabeçalho dentro da faixa → "… disse K." no canônico, pelas duas
+rotas). Não escrevi — a regra de junção hoje (`join_crossing_items`/
+`_continues_paragraph`) só junta quando o lado seguinte começa com letra
+minúscula, e "K." começa com maiúscula (nome próprio); um teste fiel ao
+exemplo do plano dependeria de decidir se isso deve passar a juntar nomes
+próprios também, o que é mudança de regra, não só de teste. Perguntar ao
+Leon antes de escrever.
+
+**Nota de interpretação resolvida (chegou a fase 5):** a dúvida das fases
+0-2 sobre `furniture_hint` ficou resolvida pela própria leitura do plano —
+`furniture_hint` é descrito como sugestão do conversor ("quem decide é a
+regra da faixa"); a decisão real ficou com bbox + `_within_band`
+(`layout.apply_body_band`), e `furniture_hint` continua carregado só para
+diagnóstico, nunca lido por nenhuma regra. Nenhuma ação pendente aqui.
 
 **Como retomar:** ler CLAUDE.md e este arquivo; `make check` deve passar
-(lint + typecheck + schema-check + 200 testes em Docker); `make map` regenera
+(lint + typecheck + schema-check + 209 testes em Docker); `make map` regenera
 o mapa. A CLI de ingestão é `make ingest PDF=<arquivo em data/raw>`.
-docling-core entrou como dependência de dev (pyproject.toml, uv.lock) só para
-o teste de exaustividade do mapa de rótulos do Docling (fase 1) — pacote
-leve (pydantic, sem torch); o serviço docling continua isolado na imagem
-própria.
+docling-core entrou como dependência de dev, fixada em `2.107.1` — igual à
+versão instalada no serviço docling (`docker/docling/Dockerfile`), para o
+mapa de rótulos não divergir entre os dois; confirmado nos dois lugares
+antes da fase 3 desta sessão. `DocItemLabel` tem 30 valores nessa versão
+(e também em 2.106.0, idêntico) — o "31" do plano (seção B.2) é uma
+contagem equivocada no texto, não uma versão diferente do enum;
+`DOCLING_LABEL_MAP` já tem as 30 entradas, exaustivo (testado em
+`test_layout.py`).
