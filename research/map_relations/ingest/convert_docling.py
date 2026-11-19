@@ -14,21 +14,25 @@ precedência de títulos precisa enxergar o documento inteiro).
 
 B04d (Opção B): os itens já chegam como LayoutItem da camada comum
 (ingest/layout.py); o rótulo nativo do Docling é traduzido por
-DOCLING_LABEL_MAP. bbox, marker, level e content_layer são capturados mas
-ainda não usados por nenhuma regra (fases 0-4 são refatoração pura; a regra
-da faixa do corpo entra só na fase 5)."""
+DOCLING_LABEL_MAP. Fase 5: cabeçalho/rodapé não são mais removidos na
+extração (docling_items); a decisão é da regra da faixa do corpo
+(layout.apply_body_band), calculada uma vez sobre o documento inteiro e
+aplicada antes da junção de parágrafo entre faixas — só assim um falso
+cabeçalho reclassificado para texto participa do join_crossing_items."""
 
 from __future__ import annotations
 
 import re
 from typing import Any
 
-from map_relations.core.ingest_contract import RemovalReason, RemovedItem
+from map_relations.core.ingest_contract import RemovedItem
 
 from .layout import (
     LayoutItem,
     LayoutLabel,
+    apply_body_band,
     classify_titles,
+    compute_body_band,
     join_crossing_items,
     normalize_bbox,
     renumber,
@@ -72,15 +76,6 @@ DOCLING_LABEL_MAP: dict[str, LayoutLabel] = {
     "grading_scale": LayoutLabel.desconhecido,
     "handwritten_text": LayoutLabel.desconhecido,
 }
-
-# Rótulos nativos que, hoje, são sempre removidos como moldura de página
-# (fases 0-4: comportamento idêntico ao de antes do B04d — a regra da faixa
-# do corpo, que mantém o item quando está dentro da faixa, é só a fase 5).
-_EDGE_LABELS = {
-    "page_header": RemovalReason.cabecalho,
-    "page_footer": RemovalReason.rodape,
-}
-
 
 def _reading_order(doc: dict[str, Any]) -> list[dict[str, Any]]:
     """Itens de texto na ordem de leitura do body; fallback: ordem do array."""
@@ -146,10 +141,11 @@ def _item_bbox(item: dict[str, Any], page_sizes: dict[int, tuple[float, float]])
 
 def docling_items(
     doc: dict[str, Any],
-) -> tuple[list[LayoutItem], list[RemovedItem], list[str], int]:
-    """Extrai itens (sem classificar) com página absoluta e remoções de borda."""
+) -> tuple[list[LayoutItem], list[str], int]:
+    """Extrai itens (sem classificar, sem remover moldura — fase 5: essa
+    decisão é da regra da faixa do corpo, layout.apply_body_band, que
+    precisa ver o item antes de decidir)."""
     items: list[LayoutItem] = []
-    removed: list[RemovedItem] = []
     alerts: list[str] = []
     page_sizes = _page_sizes(doc)
     order = 0
@@ -157,15 +153,6 @@ def docling_items(
         source_label = item.get("label", "text")
         text = _flat(item.get("text") or "")
         if not text:
-            continue
-        if source_label in _EDGE_LABELS:
-            removed.append(
-                RemovedItem(
-                    page=_first_page(item) or 0,
-                    reason=_EDGE_LABELS[source_label],
-                    text=text,
-                )
-            )
             continue
         label, alert = resolve_label(source_label, DOCLING_LABEL_MAP)
         if alert:
@@ -186,7 +173,7 @@ def docling_items(
         )
         order += 1
     pages = len(doc.get("pages", {}) or {})
-    return items, removed, alerts, pages
+    return items, alerts, pages
 
 
 def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
@@ -200,20 +187,33 @@ def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
 def merge_range_docs(
     docs: list[dict[str, Any]],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
-    """Junta faixas no nível dos itens, com página absoluta, aplicando a regra
-    de parágrafo que atravessa página na fronteira entre faixas. Só depois
-    classifica, para a precedência de títulos ver o documento inteiro."""
-    removed: list[RemovedItem] = []
+    """Junta faixas no nível dos itens, com página absoluta. A faixa do
+    corpo (fase 5) é calculada uma só vez sobre o documento inteiro — nunca
+    por faixa de página (B04c) — e só então aplicada a cada faixa; a
+    junção de parágrafo que atravessa página na fronteira entre faixas usa
+    as faixas já limpas pela regra do corpo (um falso cabeçalho
+    reclassificado para texto passa a poder ser unido à frase anterior).
+    Classificação de títulos só depois, para a precedência ver o
+    documento inteiro."""
     item_alerts: list[str] = []
     total_pages = 0
     ranges: list[list[LayoutItem]] = []
     for doc in docs:
-        items, rem, alerts, pages = docling_items(doc)
-        removed.extend(rem)
+        items, alerts, pages = docling_items(doc)
         item_alerts.extend(alerts)
         total_pages += pages
         ranges.append(items)
-    merged = renumber(join_crossing_items(ranges))
+
+    band = compute_body_band([it for r in ranges for it in r])
+    removed: list[RemovedItem] = []
+    band_ranges: list[list[LayoutItem]] = []
+    for r in ranges:
+        kept, rem, alerts = apply_body_band(r, band)
+        band_ranges.append(kept)
+        removed.extend(rem)
+        item_alerts.extend(alerts)
+
+    merged = renumber(join_crossing_items(band_ranges))
     blocks, block_alerts = items_to_blocks(merged)
     return blocks, removed, item_alerts + block_alerts, total_pages
 
@@ -221,7 +221,9 @@ def merge_range_docs(
 def docling_to_blocks(
     doc: dict[str, Any],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
-    """Faixa única: extrai, classifica e devolve (blocos, removidos, alertas, páginas)."""
-    items, removed, item_alerts, pages = docling_items(doc)
-    blocks, block_alerts = items_to_blocks(items)
-    return blocks, removed, item_alerts + block_alerts, pages
+    """Faixa única: extrai, aplica a regra da faixa do corpo (fase 5),
+    classifica e devolve (blocos, removidos, alertas, páginas)."""
+    items, item_alerts, pages = docling_items(doc)
+    band_items, removed, band_alerts = apply_body_band(items)
+    blocks, block_alerts = items_to_blocks(band_items)
+    return blocks, removed, item_alerts + band_alerts + block_alerts, pages

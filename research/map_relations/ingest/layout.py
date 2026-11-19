@@ -286,3 +286,136 @@ def drop_page_furniture(
 
     kept = [it for it in items if it.order not in drop_ids]
     return kept, removed, alerts
+
+
+@dataclass(frozen=True)
+class BodyBand:
+    """Faixa vertical típica do corpo do documento, em fração de página
+    (mesma convenção de BBox: topo-esquerda, 0.0–1.0). `confident` é False
+    quando não há bbox suficiente de itens de corpo — poucas páginas ou
+    nenhuma geometria — e a regra da faixa não deve decidir nesse caso
+    (fallback: comportamento de antes da fase 5, ver `apply_body_band`)."""
+
+    top: float
+    bottom: float
+    confident: bool
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, round(fraction * (len(ordered) - 1))))
+    return ordered[index]
+
+
+# Itens de corpo genuíno — nunca cabecalho/rodape, que é exatamente o que a
+# regra da faixa decide; incluir esses dois enviesaria a própria medida.
+_BODY_LABELS = {LayoutLabel.texto, LayoutLabel.titulo, LayoutLabel.lista}
+
+# Mesmo limiar de "poucas páginas" do drop_page_furniture (len(edges) < 3).
+_MIN_PAGES_FOR_BAND = 3
+
+
+def _is_body_candidate(it: LayoutItem) -> bool:
+    """Item de corpo genuíno para medir a faixa: rótulo de corpo, com bbox,
+    e não um candidato a número de página — um número isolado na borda não
+    representa a margem do corpo mesmo quando rotulado `texto` (é
+    exatamente o caso que a regra da faixa precisa detectar, não usar
+    como referência)."""
+    return (
+        it.label in _BODY_LABELS
+        and it.bbox is not None
+        and not _PAGE_NUMBER_RE.match(_normalize_line(it.text))
+    )
+
+
+def compute_body_band(items: list[LayoutItem]) -> BodyBand:
+    """Faixa do corpo por percentis (5º/95º) das bboxes dos itens de corpo
+    de TODO o documento passado — fase 5 (B04d): quando chamada depois do
+    merge de faixas de página (B04c), o corte é um só sobre o documento
+    inteiro, nunca um por faixa."""
+    body_bboxes = [it.bbox for it in items if _is_body_candidate(it) and it.bbox is not None]
+    pages_with_bbox = {it.page for it in items if _is_body_candidate(it) and it.page is not None}
+    if len(pages_with_bbox) < _MIN_PAGES_FOR_BAND or not body_bboxes:
+        return BodyBand(top=0.0, bottom=1.0, confident=False)
+    return BodyBand(
+        top=_percentile([b.top for b in body_bboxes], 0.05),
+        bottom=_percentile([b.bottom for b in body_bboxes], 0.95),
+        confident=True,
+    )
+
+
+def _within_band(bbox: BBox, band: BodyBand) -> bool:
+    return bbox.top >= band.top and bbox.bottom <= band.bottom
+
+
+# Rótulo de moldura → razão de remoção, no fallback (faixa não confiável ou
+# item sem bbox): mesmo comportamento incondicional de antes da fase 5.
+_FURNITURE_REASONS = {
+    LayoutLabel.cabecalho: RemovalReason.cabecalho,
+    LayoutLabel.rodape: RemovalReason.rodape,
+}
+
+
+def apply_body_band(
+    items: list[LayoutItem], band: BodyBand | None = None
+) -> tuple[list[LayoutItem], list[RemovedItem], list[str]]:
+    """Regra nova da Opção A, só a fase 5 (B04d): item de cabeçalho/rodapé
+    **dentro** da faixa do corpo volta a ser texto, na posição original;
+    **fora** da faixa é removido; número de página fora da faixa é removido
+    mesmo chegando com rótulo `text`, mas número **dentro** da faixa
+    (citação no meio do parágrafo, por exemplo) é mantido.
+
+    `band` é opcional: quando omitido, é calculada a partir dos próprios
+    `items` (uso de faixa única); passar uma `BodyBand` já calculada sobre o
+    documento inteiro é o que faz o corte valer para todas as faixas de
+    página de uma vez (fase 5, nota do B04c).
+
+    Sem faixa confiável, ou item individual sem bbox: comportamento de
+    antes da fase 5 — cabecalho/rodapé sempre removidos, incondicional; o
+    resto (inclusive número de página) intocado — com alerta quando a
+    faixa inteira não é confiável, para a revisão humana confirmar."""
+    if band is None:
+        band = compute_body_band(items)
+
+    kept: list[LayoutItem] = []
+    removed: list[RemovedItem] = []
+    alerts: list[str] = []
+
+    if not band.confident:
+        alerts.append("faixa do corpo não confiável — mantendo comportamento atual")
+        for it in items:
+            reason = _FURNITURE_REASONS.get(it.label)
+            if reason is not None:
+                removed.append(RemovedItem(page=it.page or 0, reason=reason, text=it.text))
+            else:
+                kept.append(it)
+        return kept, removed, alerts
+
+    for it in items:
+        if it.bbox is None:
+            reason = _FURNITURE_REASONS.get(it.label)
+            if reason is not None:
+                removed.append(RemovedItem(page=it.page or 0, reason=reason, text=it.text))
+            else:
+                kept.append(it)
+            continue
+
+        if _PAGE_NUMBER_RE.match(_normalize_line(it.text)) and not _within_band(it.bbox, band):
+            removed.append(
+                RemovedItem(page=it.page or 0, reason=RemovalReason.numero_pagina, text=it.text)
+            )
+            continue
+
+        reason = _FURNITURE_REASONS.get(it.label)
+        if reason is None:
+            kept.append(it)
+        elif _within_band(it.bbox, band):
+            kept.append(replace(it, label=LayoutLabel.texto))
+            alerts.append(
+                f'{it.label.value} dentro da faixa do corpo volta a ser texto '
+                f'(p.{it.page}): "{it.text[:60]}"'
+            )
+        else:
+            removed.append(RemovedItem(page=it.page or 0, reason=reason, text=it.text))
+
+    return kept, removed, alerts
