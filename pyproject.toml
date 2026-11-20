@@ -22,6 +22,12 @@ dev = [
     "pydantic>=2.9",
     "pydeps>=1.12",
     "vulture>=2.11",
+    # só para o teste de exaustividade do mapa de rótulos do Docling
+    # (B04d B.2); o serviço docling roda isolado, com a imagem própria.
+    # Versão fixa, igual à do serviço docling (docker/docling/Dockerfile) —
+    # docling==2.150.0 pede docling-core>=2.106.0,<3.0.0 (faixa, sem lock);
+    # 2.107.1 é a versão mais recente da faixa hoje nos dois lugares.
+    "docling-core==2.107.1",
 ]
 
 [build-system]

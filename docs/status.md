@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-13
+# Status — atualizado em 2026-11-19 (B04d fechado)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -46,12 +46,79 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   de parágrafo na fronteira). O documento de teste inteiro (379 p.) convertido sem OOM,
   pico 2,45 GiB por faixa. Relatório: [docs/blocks/B04c.md](blocks/B04c.md).
 
-## Em andamento
+## Concluído (cont.)
 
-- Nada — bloco B04c aguarda revisão do Leon antes do B02.
+- **B04d (Opção B, completo)** — branch `b04d-cabecalho`. Camada comum de
+  layout entre conversores: `ingest/layout.py` com `LayoutItem`/`BBox`/
+  `LayoutLabel` (fase 0); adaptador Docling devolve `LayoutItem` via
+  `DOCLING_LABEL_MAP` exaustivo sobre `DocItemLabel` — `docling-core` entrou
+  como dependência de dev só para esse teste (fase 1); `join_crossing_items`,
+  `classify_titles` (as 4 mensagens de alerta citadas no plano, preservadas
+  literalmente) e `drop_page_furniture` saem do Docling/`canonical.py` para
+  `layout.py`, um commit por regra (fase 2). `is_explicit_heading`/`_despace`
+  também saíram de `canonical.py` para `layout.py`; `canonical.py` mantém os
+  dois como re-export.
+  Fase 3: `canonical.pdf_pages_to_blocks` vira adaptador — remoção de
+  cabeçalho/rodapé/número de página passa a `layout.drop_page_furniture`
+  (sobre a 1ª/última linha não vazia de cada página) e a junção de parágrafo
+  entre páginas passa a `layout.join_crossing_items`; `classify_headings`
+  (precedência de títulos do pdf_loader) fica onde estava.
+  Fase 4: extraído `canonical.layout_items_to_blocks` (o pós-processamento
+  comum que `pdf_pages_to_blocks` já fazia); TXT e pandoc passam a usá-lo em
+  vez de chamar `classify_headings` direto, virando `LayoutItem` numa só
+  faixa, sem `page` nem `bbox` — confirma que isso desliga a regra de borda
+  sem caso especial.
+  Fase 5 (regra nova, Opção A): `layout.compute_body_band` (percentis 5º/95º
+  das bboxes dos itens de corpo do documento inteiro; não confiável com
+  menos de 3 páginas com bbox) e `layout.apply_body_band` — cabeçalho/rodapé
+  **dentro** da faixa volta a ser texto, na posição original (com alerta de
+  reclassificação, para o report.md); **fora**, continua removido; número
+  de página fora da faixa é removido mesmo rotulado `text`; dentro, é
+  mantido.
+  Fase 6: `docling_compare.compare` passou a operar sobre `LayoutItem[]` em
+  vez do JSON nativo do Docling — `CONVERTERS` em `__main__.py` registra
+  `docling` e `pdf_loader`, e `make compare --converter <nome>` escolhe qual
+  comparar contra o pdf_loader; reconhecimento do MinerU Basic rodado uma
+  vez (ADR 010), sem adaptador.
+  **Decisão do E2** (fechada nesta sessão, Leon): bloco sem pontuação final
+  une ao seguinte mesmo que comece com maiúscula (nome próprio, ex. "K." no
+  início de página), exceto se o seguinte começa com travessão de fala, é
+  título ou item de lista, ou se o anterior é título — implementado em
+  `layout._continues_paragraph`/`join_crossing_items`; testes E2 nas duas
+  rotas (unidade em `test_layout.py`; ponta a ponta em
+  `test_docling_ranges.py` e `test_ingest_contract.py`).
+  `classify_titles` (Docling) e `canonical.classify_headings` (pdf_loader)
+  **não foram unificadas** — ver Pendências.
+  213 testes verdes (209 de antes + 4 do E2). ADR 009 (Opção B) e ADR 010
+  (MinerU). `data/processed` apagado e regerado do zero com `o_processo.pdf`:
+  129 páginas, 1399 parágrafos, 10 capítulos, 0 itens removidos, 0 alertas
+  ativos; 0 itens reclassificados pela faixa do corpo (este PDF não tem
+  cabeçalho/rodapé/numeração repetida no corpo — já sabido do B04b-prova, a
+  faixa simplesmente não teve o que corrigir). `make check` e os dois jobs
+  do CI (test + build-prod) verdes localmente. Plano completo e relatório:
+  [docs/plans/B04d.md](plans/B04d.md), [docs/blocks/B04d.md](blocks/B04d.md).
 
 ## Pendências
 
+- **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
+  nesta sessão (passar a variante da mensagem como parâmetro, preservando
+  as mensagens literalmente) e não é viável só com isso: os dois sinais
+  fracos de título são de natureza diferente — `classify_titles` lê
+  `LayoutItem.label is LayoutLabel.titulo` (sinal estrutural do conversor)
+  e promove um título fraco adjacente a um forte para `subtitulo`;
+  `classify_headings` lê uma heurística de texto (linha toda em maiúsculas)
+  e não tem o conceito de subtítulo. Unificar de verdade exigiria também
+  decidir se o pdf_loader passa a ter subtítulo (mudança de comportamento,
+  não só de código) e marcar `LayoutLabel.titulo` nas linhas em maiúsculas
+  do pdf_loader antes do `join_crossing_items` (hoje elas chegam como
+  `texto`). Fica para outro bloco, com decisão do Leon sobre o subtítulo.
+- **B04d: licença do MinerU não confirmada no `LICENSE` do repositório**
+  porque **o repositório não tem esse arquivo** — não há remoto no GitHub
+  ainda (ver pendência abaixo). A licença real (lida do pacote, ADR 010) é
+  Apache 2.0 + termos adicionais do MinerU Team (uso comercial livre até
+  100M MAU/USD 20M de receita mensal; atribuição obrigatória se expuser
+  parsing via MinerU a terceiros). Decisão de criar o `LICENSE` e escolher
+  os termos do projeto é do Leon.
 - Leon: adicionar 3–5 PDFs de diagramação variada em data/raw/ e listá-los em
   eval/pdfs/conjunto.txt; depois `make compare-all`.
 - Subtítulo em caixa mista grudado no título pelo Docling (ex.: "C A P Í T U L O
@@ -73,16 +140,63 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 005 — só LlmEngine.complete é async; tarefas com gather + semáforo.
 - ADR 006 — tabela de transições de estado; ChangeLog em toda mudança.
 - ADR 007 — map_relations como pacote instalável (hatchling); sem PYTHONPATH.
+- ADR 008 — Markdown estruturado como formato intermediário único.
+- ADR 009 — B04d: camada comum de layout entre conversores (Opção B).
+- ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
 
 ## Handoff
 
-**Próximo passo exato:** aguardar a revisão do Leon em docs/blocks/ (B04,
-B04-docs, B04-pkg, B04b-prova, B04c e B01b). Aprovado, iniciar o **B02**: criar
-`eval/gold/processo.json` (exemplos marcados como fictícios, offsets sobre o
-texto canônico do IngestResult) e o comando
-`eval --run <arquivo> --gold <arquivo>` com precisão, recall e F1 por tipo,
-classe, nível e lente — critérios no bloco B02 do CLAUDE.md.
+**B04d está fechado** (branch `b04d-cabecalho`, não mesclada/sem push).
+Critério de pronto do plano revisado item a item:
+
+1. `make check` e os dois jobs do CI (test + build-prod) verdes localmente
+   — ok.
+2. Testes do plano — ok, exceto a unificação opcional de títulos (não fazia
+   parte da lista de testes do plano em si).
+3. `data/processed` apagado e regerado com `o_processo.pdf` — ok: 129
+   páginas, 1399 parágrafos, 10 capítulos, 0 removidos, 0 alertas ativos; 0
+   itens reclassificados pela faixa do corpo (ver nota abaixo).
+4. Nenhuma regra cita nome/título/padrão do livro de teste — ok (inalterado
+   desde o B04b-prova).
+5. ADR da decisão (Opção B) — ok, [ADR 009](adr/009-camada-comum-layout.md).
+6. `docs/architecture.md` e `docs/mapa` atualizados — ok.
+7. Fases 0-4 sem edição de teste existente — ok (209 testes antigos
+   intocados; só os novos E1-E3/F1-F7/E2 foram acrescentados).
+8. ADR do MinerU com campos reais, licença e custo — ok,
+   [ADR 010](adr/010-reconhecimento-mineru.md), com a pendência da licença
+   registrada acima (falta o arquivo `LICENSE` em si, decisão do Leon).
+
+**Nota sobre o item 3 (itens reclassificados):** `report.md` não tem uma
+seção dedicada a reclassificação — os alertas de `apply_body_band`
+("… dentro da faixa do corpo volta a ser texto …") apareceriam misturados
+em "Alertas"/"Da conversão" se existissem. Para `o_processo.pdf` não
+existe nenhum: o PDF não tem cabeçalho/rodapé/numeração repetida no corpo
+(já achado no B04b-prova), então a regra da faixa não teve nada para
+corrigir nesta obra — comportamento correto, não um bug da regra. As 5
+alertas de "Da conversão" são todas sobre títulos em maiúsculas/letras
+espaçadas não numerados como capítulo (ex.: "ÍNDICE", "F Fr ra an nz z
+K Ka af fk ka a"), sem relação com a faixa do corpo.
+
+**Nota de interpretação resolvida (da fase 5):** a dúvida das fases 0-2
+sobre `furniture_hint` ficou resolvida pela própria leitura do plano —
+`furniture_hint` é descrito como sugestão do conversor ("quem decide é a
+regra da faixa"); a decisão real ficou com bbox + `_within_band`
+(`layout.apply_body_band`), e `furniture_hint` continua carregado só para
+diagnóstico, nunca lido por nenhuma regra.
+
+**Próximo bloco (fora do B04d):** resto do B04 (TXT/EPUB), migração do
+`url_loader`, B02 (gabarito e comando eval), ou abrir um bloco para a
+unificação de títulos pdf_loader/Docling — decisão do Leon sobre qual vem
+primeiro.
 
 **Como retomar:** ler CLAUDE.md e este arquivo; `make check` deve passar
-(lint + typecheck + schema-check + 180 testes em Docker); `make map` regenera
-o mapa. A CLI de ingestão é `make ingest PDF=<arquivo em data/raw>`.
+(lint + typecheck + schema-check + 213 testes em Docker); `make map`
+regenera o mapa. A CLI de ingestão é `make ingest PDF=<arquivo em
+data/raw>`; `make compare PDF=<arquivo> [--converter docling|pdf_loader]`
+(via `python -m map_relations compare ... --converter`). docling-core é
+dependência de dev, fixada em `2.107.1` — igual à versão instalada no
+serviço docling (`docker/docling/Dockerfile`). O serviço MinerU
+(`docker/mineru/Dockerfile`, perfil `mineru`) precisa de
+`mineru-kit models download --tier basic` antes do primeiro `mineru-kit
+parse`; os modelos ficam no volume nomeado `mineru_models`, não em
+`data/`.

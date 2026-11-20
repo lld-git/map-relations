@@ -9,7 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Versão pinada — a chave de cache em map_relations/ingest/store.py
 # (DOCLING_VERSION) precisa acompanhar qualquer mudança aqui.
-RUN pip install --no-cache-dir docling==2.150.0
+# docling-core também fixado (2.150.0 só pede >=2.106.0,<3.0.0, sem lock):
+# mesma versão exata do dev-dependency do app (pyproject.toml), para o
+# mapa de rótulos (DOCLING_LABEL_MAP) não divergir do que o serviço usa.
+RUN pip install --no-cache-dir docling==2.150.0 docling-core==2.107.1
 
 # /usr/bin/time -v para medir tempo e memória das conversões (ADR 008)
 RUN apt-get update && apt-get install -y --no-install-recommends time && \

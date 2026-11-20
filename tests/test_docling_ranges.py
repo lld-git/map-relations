@@ -69,6 +69,62 @@ def test_title_at_boundary_never_joined():
     assert any(x.kind is ParagraphKind.titulo and x.text == "Capítulo II" for x in blocks)
 
 
+def _doc_with_bbox(pages: list[int], items: list[tuple[str, str, int]]) -> dict:
+    """Como `_doc`, mas com bbox e tamanho de página — necessário para a
+    regra da faixa do corpo (fase 5) decidir algo; todos os itens usam a
+    mesma bbox (dentro da faixa típica de corpo), já que o que varia entre
+    eles aqui é o rótulo nativo, não a posição."""
+    return {
+        "pages": {str(p): {"size": {"width": 600, "height": 800}} for p in pages},
+        "body": {"children": [{"$ref": f"#/texts/{i}"} for i in range(len(items))]},
+        "texts": [
+            {
+                "label": lbl,
+                "text": txt,
+                "prov": [{"page_no": pg, "bbox": {"l": 100, "t": 700, "r": 500, "b": 680}}],
+            }
+            for lbl, txt, pg in items
+        ],
+    }
+
+
+def test_false_header_at_page_start_rejoins_cut_sentence_e2():
+    """E2 ponta a ponta (plano B04d): página A termina sem pontuação final
+    com "... ela finalmente disse"; página B abre com "K." rotulado
+    page_header pelo Docling mas geometricamente dentro da faixa do corpo —
+    a regra da faixa (fase 5) reclassifica para texto, na posição original,
+    e só então a junção de parágrafo (decisão do E2) o une ao anterior
+    apesar de "K." começar com maiúscula: "... ela finalmente disse K."."""
+    a = _doc_with_bbox(
+        [1, 2, 3],
+        [
+            ("text", "Primeira frase de preenchimento do corpo.", 1),
+            ("text", "Segunda frase de preenchimento do corpo.", 2),
+            (
+                "text",
+                "O interrogatório prosseguiu até que, cansada, ela finalmente disse",
+                3,
+            ),
+        ],
+    )
+    b = _doc_with_bbox(
+        [4],
+        [
+            ("page_header", "K.", 4),
+            ("text", "Mas ninguém respondeu.", 4),
+        ],
+    )
+    blocks, removed, alerts, _ = merge_range_docs([a, b])
+    textos = [x.text for x in blocks]
+    assert (
+        "O interrogatório prosseguiu até que, cansada, ela finalmente disse K."
+        in textos
+    )
+    assert "Mas ninguém respondeu." in textos
+    assert removed == []  # "K." não foi removido como cabeçalho: ficou dentro da faixa
+    assert any("volta a ser texto" in a and "K." in a for a in alerts)
+
+
 # ── classificação global entre faixas ─────────────────────────────────────────
 
 

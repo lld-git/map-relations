@@ -3,12 +3,25 @@
 Converte páginas brutas de um parser em blocos MdBlock (com página, título e
 alertas) para o Markdown intermediário. A montagem do IngestResult vive no
 parser único (markdown.parse_markdown); build_ingest_result encadeia os dois.
+
+B04d fase 3: adaptador para a camada comum (ingest/layout.py). A remoção de
+cabeçalho/rodapé/número de página (antes `_find_repeated_edges` + a parte de
+decisão de `_clean_pages`) passa a ser `layout.drop_page_furniture`, operando
+sobre a primeira/última linha não vazia de cada página como `LayoutItem`
+(mesmo critério de borda de antes). A junção de parágrafo que atravessa
+página (antes um `if ... endswith("-")` ad hoc em `pdf_pages_to_blocks`) passa
+a ser `layout.join_crossing_items`, a mesma função da fase 2.1 — aqui a
+fronteira é entre páginas em vez de entre faixas do Docling.
+`classify_headings` continua à parte (não migra para `layout.classify_titles`):
+as mensagens de alerta do pdf_loader ("título em maiúsculas…", "…regra de
+maiúsculas…") são diferentes, literalmente, das do Docling ("título do
+layout…", "…layout do Docling…" — ver plano B04d B.4.2), e `test_ingest_contract`
+confere o texto do pdf_loader; unificar os dois é trabalho de outro bloco.
 """
 
 from __future__ import annotations
 
 import re
-from collections import Counter
 
 from map_relations.core.ingest_contract import (
     IngestResult,
@@ -17,45 +30,16 @@ from map_relations.core.ingest_contract import (
     RemovedItem,
 )
 
+from .layout import (  # noqa: F401 (despace/is_explicit_heading re-exportados: docling_compare, alerts)
+    LayoutItem,
+    LayoutLabel,
+    _despace,
+    drop_page_furniture,
+    is_explicit_heading,
+    join_crossing_items,
+    renumber,
+)
 from .markdown import MdBlock, parse_markdown, render_markdown
-
-# Linha repetida no início/fim de pelo menos esta fração das páginas é
-# tratada como cabeçalho/rodapé.
-_REPEAT_THRESHOLD = 0.6
-
-_PAGE_NUMBER_RE = re.compile(r"^[\s\-–—]*\d{1,4}[\s\-–—]*$")
-
-# Padrões explícitos de capítulo (com e sem espaçamento entre letras).
-_CHAPTER_RES = [
-    re.compile(r"^cap[íi]tulo\s+\S+", re.IGNORECASE),
-    re.compile(r"^[IVXLCDM]{1,7}\.?$"),
-]
-# Versões sobre o texto sem espaços ("C A P Í T U L O I" → "capítuloi").
-_CHAPTER_DESPACED_RES = [
-    re.compile(r"^cap[íi]tulo", re.IGNORECASE),
-    re.compile(r"^[IVXLCDM]{1,7}\.?$", re.IGNORECASE),
-]
-
-
-def _despace(line: str) -> str:
-    """Remove espaçamento tipográfico entre letras, para detecção apenas.
-    Só age quando a maioria dos tokens é de um caractere (letras espaçadas)."""
-    tokens = line.split()
-    if len(tokens) >= 4 and sum(len(t) == 1 for t in tokens) / len(tokens) >= 0.7:
-        return "".join(tokens)
-    return line
-
-
-def is_explicit_heading(line: str) -> bool:
-    """Título que casa um padrão explícito de capítulo (Capítulo N, romanos),
-    inclusive com letras espaçadas."""
-    line = line.strip()
-    if not line or len(line) > 60:
-        return False
-    if any(rx.match(line) for rx in _CHAPTER_RES):
-        return True
-    despaced = _despace(line)
-    return despaced != line and any(rx.match(despaced) for rx in _CHAPTER_DESPACED_RES)
 
 
 def _is_uppercase_heading(line: str) -> bool:
@@ -96,67 +80,74 @@ def _normalize_line(line: str) -> str:
     return re.sub(r"\s+", " ", line).strip()
 
 
-def _find_repeated_edges(pages: list[list[str]]) -> tuple[set[str], set[str]]:
-    """Linhas (normalizadas) que se repetem no topo/rodapé das páginas."""
-    nonempty = [p for p in pages if p]
-    if len(nonempty) < 3:
-        return set(), set()
-    threshold = max(2, int(len(nonempty) * _REPEAT_THRESHOLD))
-    tops = Counter(_normalize_line(p[0]) for p in nonempty)
-    bottoms = Counter(_normalize_line(p[-1]) for p in nonempty)
-    headers = {line for line, n in tops.items() if n >= threshold and line}
-    footers = {line for line, n in bottoms.items() if n >= threshold and line}
-    return headers, footers
+def _border_items(
+    pages_lines: list[list[str]],
+) -> tuple[list[LayoutItem], dict[int, tuple[int, int]]]:
+    """Primeira e última linha não vazia de cada página, como LayoutItem
+    (uma entrada por borda; a mesma linha quando a página só tem uma).
+    `positions` mapeia `order` de volta para (índice da página, índice da
+    linha) — só assim dá para remover a linha certa depois, já que
+    LayoutItem não carrega posição dentro da página, só `page`."""
+    items: list[LayoutItem] = []
+    positions: dict[int, tuple[int, int]] = {}
+    order = 0
+    for page_idx, lines in enumerate(pages_lines):
+        idxs = [i for i, ln in enumerate(lines) if ln.strip()]
+        if not idxs:
+            continue
+        for i in dict.fromkeys((idxs[0], idxs[-1])):  # dedupe preservando ordem
+            items.append(
+                LayoutItem(
+                    order=order,
+                    label=LayoutLabel.texto,
+                    text=lines[i],
+                    source_label="line",
+                    converter="pdf_loader",
+                    page=page_idx + 1,
+                )
+            )
+            positions[order] = (page_idx, i)
+            order += 1
+    return items, positions
 
 
 def _clean_pages(
     raw_pages: list[str],
 ) -> tuple[list[str], list[RemovedItem], list[str]]:
     """Remove cabeçalhos, rodapés e números de página das bordas de cada
-    página, preservando linhas em branco (estrutura de parágrafos)."""
+    página (layout.drop_page_furniture, pela mesma regra de repetição de
+    antes), preservando linhas em branco (estrutura de parágrafos)."""
     pages_lines = [page.splitlines() for page in raw_pages]
-    content_lines = [[ln for ln in lines if ln.strip()] for lines in pages_lines]
-    headers, footers = _find_repeated_edges(content_lines)
     removed: list[RemovedItem] = []
     alerts: list[str] = []
-    cleaned: list[str] = []
 
-    for page_no, (lines, content) in enumerate(
-        zip(pages_lines, content_lines), start=1
-    ):
-        if not content:
+    for page_idx, lines in enumerate(pages_lines):
+        if not any(ln.strip() for ln in lines):
             removed.append(
-                RemovedItem(page=page_no, reason=RemovalReason.pagina_vazia, text="")
+                RemovedItem(
+                    page=page_idx + 1, reason=RemovalReason.pagina_vazia, text=""
+                )
             )
-            alerts.append(f"página {page_no} sem texto")
+            alerts.append(f"página {page_idx + 1} sem texto")
+
+    items, positions = _border_items(pages_lines)
+    kept, border_removed, _ = drop_page_furniture(items)
+    removed.extend(border_removed)
+
+    drop_by_page: dict[int, set[int]] = {}
+    for order in {it.order for it in items} - {it.order for it in kept}:
+        page_idx, line_idx = positions[order]
+        drop_by_page.setdefault(page_idx, set()).add(line_idx)
+
+    cleaned: list[str] = []
+    for page_idx, lines in enumerate(pages_lines):
+        if not any(ln.strip() for ln in lines):
             cleaned.append("")
             continue
-        idxs = [i for i, ln in enumerate(lines) if ln.strip()]
-        first, last = idxs[0], idxs[-1]
-        drop: set[int] = set()
-        norm_first = _normalize_line(lines[first])
-        norm_last = _normalize_line(lines[last])
-        if norm_first in headers:
-            drop.add(first)
-            removed.append(
-                RemovedItem(page=page_no, reason=RemovalReason.cabecalho, text=norm_first)
-            )
-        if last != first and norm_last in footers:
-            drop.add(last)
-            removed.append(
-                RemovedItem(page=page_no, reason=RemovalReason.rodape, text=norm_last)
-            )
-        for i in dict.fromkeys((first, last)):  # dedupe preservando ordem
-            norm = _normalize_line(lines[i])
-            if i not in drop and _PAGE_NUMBER_RE.match(norm):
-                drop.add(i)
-                removed.append(
-                    RemovedItem(
-                        page=page_no, reason=RemovalReason.numero_pagina, text=norm
-                    )
-                )
-        kept = [ln for i, ln in enumerate(lines) if i not in drop]
-        cleaned.append("\n".join(kept).strip("\n"))
+        drop = drop_by_page.get(page_idx, set())
+        cleaned.append(
+            "\n".join(ln for i, ln in enumerate(lines) if i not in drop).strip("\n")
+        )
     return cleaned, removed, alerts
 
 
@@ -180,34 +171,71 @@ def _split_paragraph_blocks(text: str) -> list[str]:
     return blocks
 
 
+def _page_items(cleaned_pages: list[str]) -> list[list[LayoutItem]]:
+    """Cada página limpa → seus parágrafos (`_split_paragraph_blocks`, que
+    faz desifenização, colapso de espaço e isolamento de título — é
+    texto→itens, não pós-processamento) como `LayoutItem` com `page`, sem
+    `bbox`. Uma sublista por página, para `join_crossing_items` enxergar a
+    fronteira entre páginas (o mesmo papel que a fronteira entre faixas do
+    Docling)."""
+    ranges: list[list[LayoutItem]] = []
+    order = 0
+    for page_no, page in enumerate(cleaned_pages, start=1):
+        items: list[LayoutItem] = []
+        for text in _split_paragraph_blocks(page) if page else []:
+            items.append(
+                LayoutItem(
+                    order=order,
+                    label=LayoutLabel.texto,
+                    text=text,
+                    source_label="paragraph",
+                    converter="pdf_loader",
+                    page=page_no,
+                )
+            )
+            order += 1
+        ranges.append(items)
+    return ranges
+
+
+def layout_items(raw_pages: list[str]) -> list[LayoutItem]:
+    """Itens de layout já com cabeçalho/rodapé/número de página removidos
+    por repetição e unidos entre páginas (join_crossing_items), com página
+    absoluta — antes da classificação de títulos. A mesma representação
+    comum que `convert_docling.merged_layout_items`, usada por `make
+    compare` para comparar qualquer conversor registrado sobre o mesmo
+    nível (LayoutItem), em vez do texto já em blocos."""
+    cleaned_pages, _removed, _alerts = _clean_pages(raw_pages)
+    return renumber(join_crossing_items(_page_items(cleaned_pages)))
+
+
+def layout_items_to_blocks(ranges: list[list[LayoutItem]]) -> tuple[list[MdBlock], list[str]]:
+    """Pós-processamento comum entre conversores sem rótulo nativo de título
+    (pdf_loader, TXT, pandoc): junta item cortado na fronteira entre páginas
+    ou faixas (`join_crossing_items` — sem efeito quando há uma só faixa,
+    como em TXT e pandoc) e classifica títulos pela precedência de
+    `classify_headings`, sobre o texto já unido. `it.page` é `None` para TXT
+    e pandoc; carregado adiante só por uniformidade com o MdBlock."""
+    merged = renumber(join_crossing_items(ranges))
+    blocks = [MdBlock(it.text, page=it.page) for it in merged]
+
+    is_heading, alerts = classify_headings([b.text for b in blocks])
+    for block, heading in zip(blocks, is_heading):
+        if heading:
+            block.kind = ParagraphKind.titulo
+    return blocks, alerts
+
+
 def pdf_pages_to_blocks(
     raw_pages: list[str],
 ) -> tuple[list[MdBlock], list[RemovedItem], list[str]]:
     """Conversor fallback: páginas brutas → blocos MdBlock com página.
 
     Mantém o comportamento histórico do pdf_loader: quebra de página é quebra
-    de bloco, exceto quando a página termina com hífen (palavra atravessa)."""
+    de bloco, exceto quando a página termina com hífen (palavra atravessa) —
+    agora via layout.join_crossing_items, a mesma regra da rota Docling."""
     cleaned_pages, removed, alerts = _clean_pages(raw_pages)
-
-    blocks: list[MdBlock] = []
-    for page_no, page in enumerate(cleaned_pages, start=1):
-        if not page:
-            continue
-        page_blocks = _split_paragraph_blocks(page)
-        if not page_blocks:
-            continue
-        start = 0
-        if blocks and blocks[-1].text.endswith("-"):
-            # palavra atravessa a página: cola no bloco anterior
-            blocks[-1].text = blocks[-1].text[:-1] + page_blocks[0]
-            start = 1
-        for text in page_blocks[start:]:
-            blocks.append(MdBlock(text, page=page_no))
-
-    is_heading, heading_alerts = classify_headings([b.text for b in blocks])
-    for block, heading in zip(blocks, is_heading):
-        if heading:
-            block.kind = ParagraphKind.titulo
+    blocks, heading_alerts = layout_items_to_blocks(_page_items(cleaned_pages))
     alerts.extend(heading_alerts)
     return blocks, removed, alerts
 

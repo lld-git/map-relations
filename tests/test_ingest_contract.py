@@ -65,6 +65,26 @@ def test_hyphenation_joined_within_page(result):
     assert "pequeno interrogatório" in result.text
 
 
+def test_proper_noun_at_page_start_rejoins_cut_sentence_e2():
+    """E2 ponta a ponta, rota pdf_loader (sem bbox, por repetição): "K."
+    como primeira linha da página 2 nunca é removido como cabeçalho — não
+    se repete em nenhuma outra página, então a regra de repetição
+    (`layout.drop_page_furniture`) não o toca —, e a junção de parágrafo
+    (decisão do E2) o une à frase sem pontuação final da página anterior
+    apesar de começar com maiúscula (nome próprio)."""
+    pages = [
+        "O interrogatório prosseguiu até que, cansada, ela finalmente disse",
+        "K.\n\nMas ninguém respondeu.",
+    ]
+    r = build_ingest_result(pages, title="t", kind="pdf")
+    assert (
+        "O interrogatório prosseguiu até que, cansada, ela finalmente disse K."
+        in r.text
+    )
+    assert "Mas ninguém respondeu." in r.text
+    assert r.removed == []
+
+
 def test_paragraph_offsets_reconstruct_exact_text(result):
     for p in result.paragraphs:
         block = result.text[p.start_offset : p.end_offset]

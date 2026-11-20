@@ -1,6 +1,6 @@
 # Arquitetura
 
-Atualizado em 2026-11-11 (após o B04 antecipado). Este documento descreve o que
+Atualizado em 2026-11-19 (B04d, Opção B). Este documento descreve o que
 existe no código; o planejado aparece tracejado nos diagramas e marcado como
 planejado. O único diagrama de fluxo do projeto está em
 [docs/mapa/fluxo.md](mapa/fluxo.md).
@@ -11,7 +11,8 @@ planejado. O único diagrama de fluxo do projeto está em
 |---|---|---|---|
 | Contratos | `contracts/` | JSON Schema, prompts, lentes e casos — independentes de linguagem | Gerados de `core/models.py`; nunca editados à mão |
 | Domínio | `research/map_relations/core/` | Modelos Pydantic, IDs, transições de estado, regras e Protocols | Sem dependência de fornecedor; síncrono e puro (ADR 005) |
-| Conversores | `research/map_relations/ingest/convert_*.py`, `canonical.py` | formato de origem → blocos do Markdown intermediário | Só eles conhecem o formato de origem (ADR 008) |
+| Camada comum de layout | `research/map_relations/ingest/layout.py` | `LayoutItem`/`BBox` e pós-processamento comum: junção de parágrafo entre páginas/faixas, precedência de títulos, cabeçalho/rodapé por repetição, faixa do corpo | Escrita uma vez para todos os conversores (ADR 009); dataclass, nunca em `contracts/schemas` |
+| Conversores | `research/map_relations/ingest/convert_*.py`, `canonical.py` | formato de origem → `LayoutItem[]` → blocos do Markdown intermediário | Só eles conhecem o formato de origem (ADR 008); decisão de layout fica na camada comum (ADR 009) |
 | Parser único | `research/map_relations/ingest/markdown.py` | documento.md → IngestResult | Interpreta só a convenção; o resto é literal |
 | Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
 | CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
@@ -86,6 +87,7 @@ flowchart BT
     subgraph ingest
         document["ingest.document"]
         md["ingest.markdown<br/>(parser único)"]
+        layout["ingest.layout<br/>(camada comum)"]
         canonical["ingest.canonical<br/>(rota pdf_loader)"]
         convdocling["ingest.convert_docling"]
         convtxt["ingest.convert_txt"]
@@ -110,16 +112,18 @@ flowchart BT
     document --> models
     md --> contract
     md --> document
+    layout --> contract
     canonical --> contract
     canonical --> md
-    convdocling --> canonical
+    canonical --> layout
+    convdocling --> layout
     convdocling --> md
     convtxt --> canonical
     convpandoc --> canonical
     pdf --> canonical
     url --> document
     reportmod --> contract
-    dcompare --> canonical
+    dcompare --> layout
     cli --> convdocling
     cli --> convtxt
     cli --> convpandoc
@@ -128,6 +132,9 @@ flowchart BT
     cli --> reportmod
     cli --> dcompare
     schemas --> models
+
+    mineru["MinerU (reconhecido, ADR 010;<br/>sem adaptador)"]:::planned
+    mineru -.-> layout
 
     engines["engines (B03)"]:::planned
     tasks["tasks (B03)"]:::planned
@@ -157,3 +164,5 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [006](adr/006-transicoes-de-estado.md) | Tabela de transições de estado; ChangeLog em toda mudança |
 | [007](adr/007-pacote-instalavel.md) | map_relations instalável via hatchling; sem PYTHONPATH |
 | [008](adr/008-markdown-intermediario.md) | Markdown intermediário único; cache Docling; documento.md revisável |
+| [009](adr/009-camada-comum-layout.md) | Opção B do B04d: camada comum de layout (`LayoutItem`) entre conversores |
+| [010](adr/010-reconhecimento-mineru.md) | Reconhecimento do MinerU Basic: campos reais, licença, custo — sem adaptador |
