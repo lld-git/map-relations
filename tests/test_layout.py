@@ -157,6 +157,30 @@ def test_join_crossing_items_never_joins_a_title():
     assert [it.text for it in out] == ["fim do trecho sem ponto", "Capítulo II"]
 
 
+def test_join_crossing_items_rejoins_proper_noun_starting_with_uppercase():
+    """E2: bloco sem pontuação final une ao seguinte mesmo que ele comece
+    com maiúscula (nome próprio) — decisão do E2 (B04d): a maiúscula deixou
+    de impedir a junção."""
+    a = [_texto(0, "A senhora Grubach observava da porta quando entrou", page=1)]
+    b = [_texto(0, "K., ainda vestido para o trabalho.", page=2)]
+    out = join_crossing_items([a, b])
+    assert [it.text for it in out] == [
+        "A senhora Grubach observava da porta quando entrou K., ainda vestido para o trabalho."
+    ]
+
+
+def test_join_crossing_items_does_not_join_dialogue_dash():
+    """E2: exceção — o seguinte começando com travessão de fala nunca é
+    continuação, mesmo com o anterior sem pontuação final."""
+    a = [_texto(0, "Josef K. ainda hesitava quando ela disse", page=1)]
+    b = [_texto(0, "— Não se preocupe, isso é normal.", page=2)]
+    out = join_crossing_items([a, b])
+    assert [it.text for it in out] == [
+        "Josef K. ainda hesitava quando ela disse",
+        "— Não se preocupe, isso é normal.",
+    ]
+
+
 # ── precedência de títulos (fase 2.2) ────────────────────────────────────────
 
 

@@ -108,14 +108,27 @@ def renumber(items: list[LayoutItem]) -> list[LayoutItem]:
 # continuação de um parágrafo cortado na fronteira de uma faixa/página.
 _SENTENCE_END = (".", "!", "?", ":", ";", '"', "»", ")", "]", "…")
 
+# travessão de fala: o próximo item que abre com um destes nunca é
+# continuação do anterior, mesmo sem pontuação final (decisão do E2, B04d).
+_DASH_PREFIXES = ("-", "–", "—")
+
 
 def _continues_paragraph(prev: str, nxt: str) -> bool:
-    """O item anterior parece um parágrafo cortado que segue no próximo?"""
+    """O item anterior parece um parágrafo cortado que segue no próximo?
+
+    Decisão do E2 (B04d): bloco sem pontuação final une ao seguinte mesmo
+    que ele comece com maiúscula (nome próprio, como "K." no início de
+    página) — a maiúscula deixou de ser condição. Exceções: o seguinte
+    começa com travessão de fala, ou é título/item de lista (já excluído
+    pelo guard de `label` em `join_crossing_items`); o anterior ser título
+    também já é excluído pelo mesmo guard."""
     if not prev or not nxt:
         return False
     if prev.endswith("-"):
         return True
-    return not prev.endswith(_SENTENCE_END) and nxt[:1].islower()
+    if nxt.startswith(_DASH_PREFIXES):
+        return False
+    return not prev.endswith(_SENTENCE_END)
 
 
 def _join_paragraph(prev: str, nxt: str) -> str:
@@ -126,10 +139,11 @@ def _join_paragraph(prev: str, nxt: str) -> str:
 
 def join_crossing_items(ranges: list[list[LayoutItem]]) -> list[LayoutItem]:
     """Junta o item de texto cortado na fronteira entre faixas consecutivas
-    (página sem pontuação final seguida de minúscula, ou hífen) — só entre
-    faixas; itens dentro da mesma faixa não são tocados. Nunca junta quando
-    um dos lados é título: o sinal (`LayoutLabel.texto` nos dois lados) já
-    garante isso, porque um título nunca tem esse rótulo."""
+    (página sem pontuação final, ou hífen — ver `_continues_paragraph`,
+    decisão do E2) — só entre faixas; itens dentro da mesma faixa não são
+    tocados. Nunca junta quando um dos lados é título ou item de lista: o
+    sinal (`LayoutLabel.texto` nos dois lados) já garante isso, porque
+    título e lista nunca têm esse rótulo."""
     merged: list[LayoutItem] = []
     for items in ranges:
         if merged and items:
