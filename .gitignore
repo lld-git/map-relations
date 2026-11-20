@@ -19,3 +19,4 @@ docs/old/*.pdf
 docs/*.pdf
 HUMANO.md
 data/golden/
+golden_scripts/
