@@ -184,17 +184,21 @@ def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
     return blocks, alerts
 
 
-def merge_range_docs(
+def merged_layout_items(
     docs: list[dict[str, Any]],
-) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
-    """Junta faixas no nível dos itens, com página absoluta. A faixa do
-    corpo (fase 5) é calculada uma só vez sobre o documento inteiro — nunca
-    por faixa de página (B04c) — e só então aplicada a cada faixa; a
-    junção de parágrafo que atravessa página na fronteira entre faixas usa
-    as faixas já limpas pela regra do corpo (um falso cabeçalho
-    reclassificado para texto passa a poder ser unido à frase anterior).
-    Classificação de títulos só depois, para a precedência ver o
-    documento inteiro."""
+) -> tuple[list[LayoutItem], list[RemovedItem], list[str], int]:
+    """Itens de layout já com a faixa do corpo aplicada (fase 5) e unidos
+    entre faixas (join_crossing_items), com página absoluta — antes da
+    classificação de títulos. A faixa do corpo é calculada uma só vez sobre
+    o documento inteiro — nunca por faixa de página (B04c) — e só então
+    aplicada a cada faixa; a junção de parágrafo que atravessa página na
+    fronteira entre faixas usa as faixas já limpas pela regra do corpo (um
+    falso cabeçalho reclassificado para texto passa a poder ser unido à
+    frase anterior). Extraído de `merge_range_docs` (fase 6, B04d): é a
+    mesma representação comum que `pdf_loader.layout_items`, usada por
+    `make compare` para comparar qualquer conversor registrado sobre o
+    mesmo nível (LayoutItem), em vez do formato nativo de um conversor
+    específico."""
     item_alerts: list[str] = []
     total_pages = 0
     ranges: list[list[LayoutItem]] = []
@@ -214,6 +218,15 @@ def merge_range_docs(
         item_alerts.extend(alerts)
 
     merged = renumber(join_crossing_items(band_ranges))
+    return merged, removed, item_alerts, total_pages
+
+
+def merge_range_docs(
+    docs: list[dict[str, Any]],
+) -> tuple[list[MdBlock], list[RemovedItem], list[str], int]:
+    """Junta faixas no nível dos itens, com página absoluta, e classifica
+    títulos (precedência global, só depois de ver o documento inteiro)."""
+    merged, removed, item_alerts, total_pages = merged_layout_items(docs)
     blocks, block_alerts = items_to_blocks(merged)
     return blocks, removed, item_alerts + block_alerts, total_pages
 

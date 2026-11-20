@@ -49,3 +49,20 @@ services:
       - ./data:/data
     profiles:
       - docling
+
+  mineru:
+    # Reconhecimento do MinerU Basic (B04d fase 6, B.3) — rodou uma vez para
+    # o ADR; sem adaptador. Imagem própria, só sobe com --profile mineru;
+    # nunca no CI.
+    build:
+      context: .
+      dockerfile: docker/mineru/Dockerfile
+    user: "0:0"
+    volumes:
+      - ./data:/data
+      - mineru_models:/root/.mineru
+    profiles:
+      - mineru
+
+volumes:
+  mineru_models: {}

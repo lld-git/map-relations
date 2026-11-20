@@ -2,7 +2,7 @@
 
     python -m map_relations ingest <arquivo>    # PDF, TXT, EPUB, DOCX, HTML
     python -m map_relations prepare <arquivo>   # imprime o dir de cache Docling
-    python -m map_relations compare <pdf>       # pdf_loader × Docling
+    python -m map_relations compare <pdf> [--converter docling|pdf_loader]
     python -m map_relations clean [--apply]     # pastas órfãs em processed/
 
 O arquivo deve estar em data/raw/. Saída em data/processed/<hash_do_arquivo>/.
@@ -17,15 +17,18 @@ import argparse
 import json
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from map_relations.core.ingest_contract import IngestResult, RemovedItem
 from map_relations.ingest.alerts import ConversionAlert, classify_conversion_alerts
 from map_relations.ingest.canonical import build_ingest_result, pdf_pages_to_blocks
-from map_relations.ingest.convert_docling import merge_range_docs
+from map_relations.ingest.canonical import layout_items as pdf_loader_layout_items
+from map_relations.ingest.convert_docling import merge_range_docs, merged_layout_items
 from map_relations.ingest.convert_pandoc import convert_pandoc
 from map_relations.ingest.convert_txt import txt_to_blocks
 from map_relations.ingest.docling_compare import compare, load_docling_json
+from map_relations.ingest.layout import LayoutItem
 from map_relations.ingest.markdown import md_hash, parse_markdown, render_markdown
 from map_relations.ingest.pdf_loader import extract_pages, page_count, page_ranges
 from map_relations.ingest.report import render_report
@@ -36,6 +39,34 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
 _PANDOC_KINDS = {".epub": "epub", ".docx": "docx", ".html": "html", ".htm": "html"}
+
+
+def _docling_converter(path: Path, store: ProcessedStore, source_hash: str) -> list[LayoutItem]:
+    range_files = store.docling_range_files(source_hash)
+    if not range_files:
+        raise FileNotFoundError(
+            f"cache do Docling ausente em {store.docling_cache_dir(source_hash)}\n"
+            f"rode antes: make docling PDF={path.name}"
+        )
+    docs = [load_docling_json(f) for f in range_files]
+    items, _removed, _alerts, _pages = merged_layout_items(docs)
+    return items
+
+
+def _pdf_loader_converter(
+    path: Path, _store: ProcessedStore, _source_hash: str
+) -> list[LayoutItem]:
+    return pdf_loader_layout_items(extract_pages(path))
+
+
+# Conversores registrados para `make compare` (B04d fase 6): qualquer um
+# aqui pode ser comparado contra o pdf_loader, sobre a mesma representação
+# comum (LayoutItem) — não só Docling. MinerU (B04d B.3) não entra: este
+# bloco não escreve adaptador.
+CONVERTERS: dict[str, Callable[[Path, ProcessedStore, str], list[LayoutItem]]] = {
+    "docling": _docling_converter,
+    "pdf_loader": _pdf_loader_converter,
+}
 
 
 def _resolve_raw(name: str) -> Path | None:
@@ -217,28 +248,28 @@ def cmd_docling_ranges(name: str, size: int) -> int:
     return 0
 
 
-def cmd_compare(name: str) -> int:
+def cmd_compare(name: str, converter: str) -> int:
     path = _resolve_raw(name)
     if path is None:
         return 2
-    source_hash = file_hash(path)
-    store = ProcessedStore(PROCESSED_DIR)
-    range_files = store.docling_range_files(source_hash)
-    if not range_files:
+    convert = CONVERTERS.get(converter)
+    if convert is None:
         print(
-            f"cache do Docling ausente em {store.docling_cache_dir(source_hash)}\n"
-            f"rode antes: make docling PDF={path.name}",
+            f"conversor desconhecido: {converter} (registrados: {', '.join(CONVERTERS)})",
             file=sys.stderr,
         )
-        return 3
+        return 2
+    source_hash = file_hash(path)
+    store = ProcessedStore(PROCESSED_DIR)
     try:
         result = build_ingest_result(extract_pages(path), title=path.stem, kind="pdf")
-        # compare só lê o array texts (label/text/prov); concatenar basta,
-        # as páginas já são absolutas em cada faixa
-        texts = [t for f in range_files for t in load_docling_json(f).get("texts", [])]
-        report = compare(result, {"texts": texts})
-        out = store.dir_for(source_hash) / "comparacao_docling.md"
+        items = convert(path, store, source_hash)
+        report = compare(result, items, converter=converter)
+        out = store.dir_for(source_hash) / f"comparacao_{converter}.md"
         out.write_text(report, encoding="utf-8")
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        return 3
     except Exception as exc:  # noqa: BLE001
         print(f"erro ao comparar {path.name}: {exc}", file=sys.stderr)
         return 1
@@ -298,9 +329,15 @@ def main(argv: list[str] | None = None) -> int:
     p_ranges.add_argument("--size", type=int, default=40, help="páginas por faixa")
 
     p_compare = sub.add_parser(
-        "compare", help="compara pdf_loader × Docling (requer make docling antes)"
+        "compare", help="compara pdf_loader × conversor registrado (requer cache do conversor)"
     )
     p_compare.add_argument("arquivo")
+    p_compare.add_argument(
+        "--converter",
+        choices=sorted(CONVERTERS),
+        default="docling",
+        help="conversor a comparar contra o pdf_loader (padrão: docling)",
+    )
 
     p_clean = sub.add_parser("clean", help="lista/remove pastas órfãs de processed/")
     p_clean.add_argument("--apply", action="store_true", help="remove de verdade")
@@ -313,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "docling-ranges":
         return cmd_docling_ranges(args.arquivo, args.size)
     if args.command == "compare":
-        return cmd_compare(args.arquivo)
+        return cmd_compare(args.arquivo, args.converter)
     if args.command == "clean":
         return cmd_clean(args.apply)
     parser.error(f"comando desconhecido: {args.command}")

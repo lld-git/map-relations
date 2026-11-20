@@ -1,6 +1,6 @@
 # Mapa de arquivos .py
 
-Atualizado em 2026-11-12, após o B04c (Markdown intermediário). Status possíveis:
+Atualizado em 2026-11-19, após o B04d (camada comum de layout, Opção B). Status possíveis:
 **ativo** (no fluxo de execução), **só teste** (usado apenas por testes, em
 geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 **morto?** (candidato a remoção — conferir codigo_morto.txt).
@@ -16,8 +16,9 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/core/rules.py | validate_claim_kinds, transition com ChangeLog | tests/test_rules | só teste (entra no pipeline em B05/B07) |
 | research/map_relations/ingest/document.py | compute_text_hash; re-exporta Source | ingest/markdown, ingest/url_loader; tests/test_ingest | ativo |
 | research/map_relations/ingest/markdown.py | convenção do .md, escape, render e parser único (ADR 008) | canonical, convert_*, \_\_main\_\_; tests/test_markdown | ativo |
-| research/map_relations/ingest/canonical.py | rota pdf_loader: limpeza de páginas, precedência de títulos, blocos | pdf_loader, convert_docling, convert_txt, convert_pandoc, \_\_main\_\_ | ativo |
-| research/map_relations/ingest/convert_docling.py | docling.json → MdBlocks; merge_range_docs junta faixas na fronteira | \_\_main\_\_; tests/test_converters, test_docling_ranges | ativo |
+| research/map_relations/ingest/layout.py | camada comum (ADR 009): LayoutItem/BBox, join_crossing_items, classify_titles, drop_page_furniture, compute_body_band/apply_body_band | canonical, convert_docling, convert_txt, docling_compare; tests/test_layout, test_layout_band | ativo |
+| research/map_relations/ingest/canonical.py | rota pdf_loader: adaptador para a camada comum, precedência de títulos (classify_headings, não unificada — ver status.md), blocos | pdf_loader, convert_docling (despace/is_explicit_heading), convert_txt, convert_pandoc, docling_compare, \_\_main\_\_ | ativo |
+| research/map_relations/ingest/convert_docling.py | docling.json → LayoutItem (DOCLING_LABEL_MAP) → MdBlocks; merge_range_docs/merged_layout_items juntam faixas e aplicam a faixa do corpo | \_\_main\_\_; tests/test_converters, test_docling_ranges, test_layout | ativo |
 | research/map_relations/ingest/alerts.py | resolve alertas da conversão sobre o .md atual | report, \_\_main\_\_; tests/test_alerts | ativo |
 | research/map_relations/ingest/convert_txt.py | TXT → MdBlocks | \_\_main\_\_; tests/test_converters | ativo |
 | research/map_relations/ingest/convert_pandoc.py | EPUB/DOCX/HTML → MdBlocks via pandoc (experimental) | \_\_main\_\_; tests/test_converters | ativo |
@@ -25,7 +26,7 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/ingest/pdf_loader.py | extract_pages, load_pdf + PdfParser (DocumentParser) | \_\_main\_\_; tests/test_ingest_contract | ativo |
 | research/map_relations/ingest/url_loader.py | load_url — ainda no formato antigo (Source, str) | ninguém | morto? (aguarda migração ao contrato no resto do B04) |
 | research/map_relations/ingest/report.py | render_report e derivados em processed/\<hash\>/ | \_\_main\_\_; tests/test_ingest_contract | ativo |
-| research/map_relations/ingest/docling_compare.py | relatório pdf_loader × Docling (prova B04b) | \_\_main\_\_; tests/test_docling_compare | ativo |
+| research/map_relations/ingest/docling_compare.py | relatório pdf_loader × conversor registrado, sobre LayoutItem[] (B04d fase 6; generalizado — era só Docling no B04b) | \_\_main\_\_ (CONVERTERS); tests/test_docling_compare | ativo |
 | research/map_relations/nlp/ner.py | extract_mentions e unique_names com spaCy | tests/test_nlp | só teste (entra no pipeline em B05) |
 | research/map_relations/\*/\_\_init\_\_.py (11 arquivos) | marcadores de pacote, vazios | — | ativo |
 | scripts/generate_schemas.py | gera/verifica JSON Schemas em contracts/schemas | tests/test_contracts; CI (`--check`) | só script (e CI) |
@@ -33,9 +34,11 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | docs/mapa/vulture_whitelist.py | whitelist do vulture (não é código do projeto) | make map | só script |
 | tests/test_cli.py | caminhos de erro da CLI | — | teste |
 | tests/test_contracts.py | Protocols e coerência dos schemas | — | teste |
-| tests/test_docling_compare.py | relatório de comparação com JSON sintético | — | teste |
+| tests/test_docling_compare.py | relatório de comparação (LayoutItem[]) com JSON sintético | — | teste |
 | tests/test_markdown.py | parser único: convenção, escape, páginas, subtítulo | — | teste |
 | tests/test_converters.py | conversores Docling/TXT/pandoc → MdBlocks | — | teste |
+| tests/test_layout.py | camada comum: BBox, mapa de rótulos, join_crossing_items (E2), classify_titles, drop_page_furniture | — | teste |
+| tests/test_layout_band.py | faixa do corpo: F1-F7 (compute_body_band/apply_body_band) | — | teste |
 | tests/test_store.py | layout processed/, hash de arquivo, órfãs, cache por faixa | — | teste |
 | tests/test_alerts.py | resolução de alertas da conversão sobre o .md atual | — | teste |
 | tests/test_docling_ranges.py | junção de faixas, parágrafo cortado na fronteira | — | teste |
@@ -47,9 +50,11 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | tests/test_rules.py | kinds compatíveis, transition + ChangeLog | — | teste |
 | tests/test_states.py | todos os 5×5×2 pares de transição | — | teste |
 
-Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): dos 11 itens
-apontados, 10 são contratos/utilitários exercitados só em testes (locate,
+Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): dos 12 itens
+apontados, 11 são contratos/utilitários exercitados só em testes (locate,
 validate_claim_kinds, transition, is_terminal, docling_to_blocks,
-docling_range, PdfParser, write_processed, extract_mentions, unique_names) —
-parte aguarda os blocos B02–B07 — e `load_url` é o único candidato real a
-dívida (migração pendente ao contrato de ingestão).
+`furniture_hint` — carregado para diagnóstico, nenhuma regra o lê, ver B.1
+do plano B04d —, docling_range, PdfParser, write_processed,
+extract_mentions, unique_names) — parte aguarda os blocos B02–B07 — e
+`load_url` é o único candidato real a dívida (migração pendente ao
+contrato de ingestão).

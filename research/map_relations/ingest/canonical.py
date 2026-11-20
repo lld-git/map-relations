@@ -198,6 +198,17 @@ def _page_items(cleaned_pages: list[str]) -> list[list[LayoutItem]]:
     return ranges
 
 
+def layout_items(raw_pages: list[str]) -> list[LayoutItem]:
+    """Itens de layout já com cabeçalho/rodapé/número de página removidos
+    por repetição e unidos entre páginas (join_crossing_items), com página
+    absoluta — antes da classificação de títulos. A mesma representação
+    comum que `convert_docling.merged_layout_items`, usada por `make
+    compare` para comparar qualquer conversor registrado sobre o mesmo
+    nível (LayoutItem), em vez do texto já em blocos."""
+    cleaned_pages, _removed, _alerts = _clean_pages(raw_pages)
+    return renumber(join_crossing_items(_page_items(cleaned_pages)))
+
+
 def layout_items_to_blocks(ranges: list[list[LayoutItem]]) -> tuple[list[MdBlock], list[str]]:
     """Pós-processamento comum entre conversores sem rótulo nativo de título
     (pdf_loader, TXT, pandoc): junta item cortado na fronteira entre páginas
