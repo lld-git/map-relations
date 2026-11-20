@@ -139,3 +139,11 @@ plano, hoje só preenchida para o Docling).
 O serviço Docker (`docker/mineru/Dockerfile`, perfil `mineru`) fica no
 repositório para a próxima sessão repetir a extração sem redescobrir a
 versão nem o CLI.
+
+## Três achados
+
+Apareceu footer num livro sem rodapé. O MinerU rotulou como rodapé algo perto da base de alguma página. Pode ser a capa ou o crédito do site, mas pode ser texto do corpo. É exatamente o caso que a camada comum resolve: o rótulo vira só sugestão, e a faixa do corpo decide. Vale conferir o conteúdo desse bloco quando o adaptador for escrito.
+
+Formatação (styles): negrito e itálico existem no MinerU, e o Docling também guarda formatação. Hoje o LayoutItem descarta isso. Vale acrescentar um campo opcional styles no adaptador: o subtítulo de capítulo costuma vir em itálico, e esse sinal ajuda a classificar sem regra de texto.
+
+Sem list_item: o MinerU não separou as falas em itens de lista. Se ele mantiver o travessão no texto, resolve de graça o problema do marcador perdido no Docling. Confira na comparação contando os travessões na saída dos dois conversores e na camada de texto do PDF
