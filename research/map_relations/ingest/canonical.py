@@ -34,6 +34,7 @@ from .layout import (  # noqa: F401 (despace/is_explicit_heading re-exportados: 
     LayoutItem,
     LayoutLabel,
     _despace,
+    detect_chapter_subtitle_alerts,
     drop_page_furniture,
     is_explicit_heading,
     join_crossing_items,
@@ -217,9 +218,11 @@ def layout_items_to_blocks(ranges: list[list[LayoutItem]]) -> tuple[list[MdBlock
     `classify_headings`, sobre o texto já unido. `it.page` é `None` para TXT
     e pandoc; carregado adiante só por uniformidade com o MdBlock."""
     merged = renumber(join_crossing_items(ranges))
+    alerts = detect_chapter_subtitle_alerts(merged)
     blocks = [MdBlock(it.text, page=it.page) for it in merged]
 
-    is_heading, alerts = classify_headings([b.text for b in blocks])
+    is_heading, heading_alerts = classify_headings([b.text for b in blocks])
+    alerts.extend(heading_alerts)
     for block, heading in zip(blocks, is_heading):
         if heading:
             block.kind = ParagraphKind.titulo

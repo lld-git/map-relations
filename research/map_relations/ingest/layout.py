@@ -143,13 +143,27 @@ def join_crossing_items(ranges: list[list[LayoutItem]]) -> list[LayoutItem]:
     decisão do E2) — só entre faixas; itens dentro da mesma faixa não são
     tocados. Nunca junta quando um dos lados é título ou item de lista: o
     sinal (`LayoutLabel.texto` nos dois lados) já garante isso, porque
-    título e lista nunca têm esse rótulo."""
+    título e lista nunca têm esse rótulo.
+
+    Exceção adicional (B04e): o primeiro bloco depois de um título explícito
+    de capítulo (`is_explicit_heading`) nunca é unido ao seguinte pela regra
+    do E2 (ausência de pontuação final) — é o caso do subtítulo de capítulo
+    (ex.: "Conversa com a senhora Grubach..."), que o E2 passaria a fundir
+    com a primeira frase da página seguinte por engano. A exceção não cobre
+    a palavra hifenizada cortada na fronteira (`prev.text.endswith("-")`):
+    isso é sempre a mesma palavra partida, nunca um subtítulo, e continua
+    sendo unido mesmo logo depois de um título. O item anterior a
+    `merged[-1]` na sequência final já reflete essa posição, mesmo depois de
+    outras junções."""
     merged: list[LayoutItem] = []
     for items in ranges:
         if merged and items:
             prev, nxt = merged[-1], items[0]
+            follows_chapter_title = len(merged) >= 2 and is_explicit_heading(merged[-2].text)
+            blocked_subtitle_join = follows_chapter_title and not prev.text.endswith("-")
             if (
-                prev.label is LayoutLabel.texto
+                not blocked_subtitle_join
+                and prev.label is LayoutLabel.texto
                 and nxt.label is LayoutLabel.texto
                 and _continues_paragraph(prev.text, nxt.text)
             ):
@@ -192,6 +206,31 @@ def is_explicit_heading(line: str) -> bool:
         return True
     despaced = _despace(line)
     return despaced != line and any(rx.match(despaced) for rx in _CHAPTER_DESPACED_RES)
+
+
+# Acima deste número de palavras, o bloco após um título de capítulo não é
+# mais tratado como candidato a subtítulo curto (B04e).
+_MAX_SUBTITLE_WORDS = 15
+
+
+def detect_chapter_subtitle_alerts(items: list[LayoutItem]) -> list[str]:
+    """Alerta quando o primeiro bloco após um título explícito de capítulo
+    tem até `_MAX_SUBTITLE_WORDS` palavras e não termina em pontuação final —
+    provável subtítulo de capítulo (ex.: "Conversa com a senhora Grubach;
+    depois com a senhorita Bürstner"), que `join_crossing_items` (B04e) agora
+    nunca une à página seguinte. Roda sobre a sequência final de itens
+    (depois da junção), não só nas fronteiras entre faixas — o subtítulo pode
+    estar inteiro na mesma página do título."""
+    alerts: list[str] = []
+    for prev, nxt in zip(items, items[1:]):
+        if not is_explicit_heading(prev.text):
+            continue
+        if len(nxt.text.split()) > _MAX_SUBTITLE_WORDS:
+            continue
+        if nxt.text.rstrip().endswith(_SENTENCE_END):
+            continue
+        alerts.append(f'possível subtítulo de capítulo: "{nxt.text[:60]}"')
+    return alerts
 
 
 def classify_titles(items: list[LayoutItem]) -> tuple[list[ParagraphKind], list[str]]:
