@@ -45,6 +45,13 @@ Quando atualizar cada arquivo:
 11. O verificador nunca recebe a lente nem o nível que gerou a relação.
 12. "Sem evidência" é sempre uma saída válida para qualquer tarefa de extração.
 13. Tudo roda em Docker. Nunca instale dependências nem execute Python na máquina host.
+14. Nome de imagem Docker só vem do Makefile/docker-compose.yml (hoje:
+    `maprelations-app`, construída uma vez e reusada pelos serviços `app` e
+    `painel`; `map-relations-prod`, só na tarefa `build-prod` do CI).
+    Nunca rode `docker build`/`docker tag` com outro nome fora desses — nem
+    para depurar; apague a imagem de teste assim que terminar. Depois de
+    qualquer rebuild, rode `docker image prune` (sem `-a`): o disco da VM do
+    Docker Desktop é pequeno e enche rápido com camadas antigas.
 
 ## Método de extração
 N0 elenco e menções; N1 pares e fatos; N2 lacunas com memória.

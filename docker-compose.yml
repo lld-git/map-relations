@@ -1,5 +1,6 @@
 services:
   app:
+    image: maprelations-app
     build:
       context: .
       target: dev
@@ -23,9 +24,10 @@ services:
         required: false
 
   painel:
-    build:
-      context: .
-      target: dev
+    # Mesma imagem do app (B04f): sem build próprio, para nunca divergir.
+    # Exige `docker compose build app` (ou qualquer alvo do Makefile que
+    # rode `app`) antes do primeiro `docker compose up painel`.
+    image: maprelations-app
     user: "0:0"
     command: uv run uvicorn map_relations.painel.main:app --host 0.0.0.0 --port 8000 --reload
     ports:

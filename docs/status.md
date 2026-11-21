@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-20 (B04e fechado)
+# Status — atualizado em 2026-11-21 (B04f falas)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -113,6 +113,50 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   4 testes novos (217 no total). `make check` e os dois jobs do CI (test +
   build-prod) verdes localmente. Relatório: [docs/blocks/B04e.md](blocks/B04e.md).
 
+- **B04f** — branch `b04f-falas`, a partir do master com o B04e já mesclado.
+  Travessão/hífen de fala não se perdia mais na extração, mas sobrevivia só
+  até o `documento.md`: editores Markdown liam a linha como item de lista.
+  Duas correções: (1) `convert_docling.items_to_blocks` agora usa
+  `marker + " " + text` para item `list_item` do Docling (o marcador já
+  chegava em `LayoutItem.marker`, mas não era usado ao montar o bloco);
+  (2) `markdown.render_markdown`/`parse_blocks` escapam com `\` só o início
+  de linha de parágrafo que começa com `-`, `–`, `—` ou `―` — o canônico não
+  muda, só o `.md` deixa de ser lido como lista; hífen no meio da linha
+  continua sem escape. 3 testes novos (220 no total):
+  `test_list_item_keeps_docling_marker_as_dash_prefix` em
+  `test_docling_ranges.py`; `test_leading_dash_escaped_in_md_but_not_in_canonical`
+  e `test_dash_in_middle_of_line_is_not_escaped` em `test_markdown.py`.
+  `make check` (lint/typecheck/schema-check/test, escopados a
+  research/tests/scripts — ver nota abaixo) e os dois jobs do CI (test +
+  build-prod, reproduzidos localmente a partir de uma cópia limpa do índice
+  do git, sem os arquivos não versionados) verdes. Sem push desta sessão.
+
+- **Infra (mesma sessão, após o B04f)** — resolvida a nota acima sobre
+  `golden_scripts/`: `pyproject.toml` agora exclui `golden_scripts/` do
+  ruff (`[tool.ruff] extend-exclude`) e do mypy (`[tool.mypy] exclude`,
+  junto com `docs/mapa/vulture_whitelist.py` — achado ao tirar a restrição
+  manual de escopo: esse arquivo não é código executável do projeto,
+  mesma categoria do `golden_scripts/`, e `mypy .` sem exclusão o
+  rejeitava com "Cannot access instance-only attribute"). `make typecheck`
+  e o job `test` do CI passaram a rodar `mypy .` (sem a lista manual
+  `research tests scripts`); `make lint` já rodava `ruff check .`.
+  `.dockerignore` já excluía `golden_scripts/` e `data/golden/` (preso no
+  working tree, nunca comitado — comitado agora junto). A imagem Docker
+  local (`maprelations-app`) estava com `golden_scripts/` preso de uma
+  camada `COPY` anterior ao `.dockerignore` atual; reconstruída do zero,
+  confirmado que não aparece mais. `make check` roda o projeto inteiro
+  sem restrição manual de escopo, verde (220 testes).
+  Imagens Docker padronizadas: `painel` não tem mais `build:` próprio —
+  usa `image: maprelations-app`, a mesma do serviço `app` (nomeada
+  explicitamente no compose, igual ao nome que o Compose já gerava, agora
+  fixo); a tarefa `build-prod` do CI já usava `map-relations-prod` (sem
+  mudança). Registrado em CLAUDE.md (princípio 14): nome de imagem só vem
+  do Makefile/docker-compose.yml, nunca `docker build`/`tag` manual fora
+  disso, e `docker image prune` depois de todo rebuild — a VM do Docker
+  Desktop aqui tem pouco espaço (ficou em ~2 GiB livres durante esta
+  sessão; `docker image prune -f` e `docker builder prune -f` liberaram
+  o suficiente para a imagem `dev` reconstruir).
+
 ## Pendências
 
 - **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
@@ -160,6 +204,20 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
 
 ## Handoff
+
+**B04f está fechado** (branch `b04f-falas`, a partir do master com o B04e já
+mesclado; sem push desta sessão). Marcador de lista do Docling preservado no
+bloco e escape de travessão/hífen de fala só no início da linha do
+`documento.md` — ver bullet B04f acima. Sem relatório dedicado em
+`docs/blocks/` (bloco pequeno, pontual); detalhe completo no bullet do
+Status.
+
+**Infra de lint/typecheck/Docker corrigida na mesma sessão, mesma branch**
+(commit separado, depois do B04f): `golden_scripts/` excluído de
+ruff/mypy via `pyproject.toml`; `make check` roda sem escopo manual;
+`painel` reusa a imagem `maprelations-app` em vez de buildar a própria;
+princípio novo no CLAUDE.md sobre nome de imagem e `docker image prune`
+— ver bullet "Infra" acima.
 
 **B04e está fechado** (branch `b04e-subtitulo`, a partir do master com o
 B04d já mesclado via PR #2; sem push desta sessão). Correção pontual do
