@@ -10,7 +10,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: test lint typecheck schema-check check ingest map shell docling compare compare-all clean-processed
+.PHONY: test lint typecheck schema schema-check check ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -20,6 +20,10 @@ lint:
 
 typecheck:
 	$(RUN) uv run mypy .
+
+schema:
+	$(RUN) uv run python -m scripts.generate_schemas
+	$(RUN) uv run python -m scripts.generate_ontology
 
 schema-check:
 	$(RUN) uv run python -m scripts.generate_schemas --check

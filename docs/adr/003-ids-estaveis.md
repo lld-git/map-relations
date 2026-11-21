@@ -20,7 +20,8 @@ Dois mecanismos complementares:
 
 2. **Chaves de conteúdo** (sha256, únicas por projeto) usadas para upsert no
    reprocessamento:
-   - `claim_key = hash(subject_id, type_id, object_id)` — para tipos simétricos
+   - `claim_key = hash(subject_id, type_id, object_id)` (desde o ADR 011, calculada
+     por `claim_key(s, RelationType, o, *, asserted_by, narrative_scope)`; ver lá) — para tipos simétricos
      (`RelationType.symmetric = True`), `subject_id` e `object_id` são ordenados
      lexicograficamente antes do hash, de modo que A→B e B→A produzam a mesma chave.
    - `participation_key = hash(event_id, entity_id, role)`

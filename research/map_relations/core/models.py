@@ -36,9 +36,15 @@ class TargetType(enum.StrEnum):
 
 class ClaimClass(enum.StrEnum):
     afirmada = "afirmada"
+    alegada = "alegada"
     inferida = "inferida"
     coocorrencia = "coocorrencia"
     interpretacao = "interpretacao"
+
+
+class NarrativeScope(enum.StrEnum):
+    obra = "obra"
+    texto_encaixado = "texto_encaixado"
 
 
 class ClaimState(enum.StrEnum):
@@ -193,6 +199,10 @@ class Claim(_Base):
     state: ClaimState = ClaimState.proposta
     confidence: float
     pass_id: str
+    # id da entidade que afirma; obrigatório se e somente se class == alegada
+    asserted_by: str | None = None
+    # None equivale a "obra"; texto_encaixado = narrativa dentro da narrativa
+    narrative_scope: NarrativeScope | None = None
 
     @field_validator("confidence")
     @classmethod
@@ -200,6 +210,15 @@ class Claim(_Base):
         if not 0.0 <= v <= 1.0:
             raise ValueError(f"confidence must be in [0, 1], got {v}")
         return v
+
+    @model_validator(mode="after")
+    def _asserted_by_iff_alegada(self) -> Claim:
+        alegada = self.claim_class is ClaimClass.alegada
+        if alegada and self.asserted_by is None:
+            raise ValueError("claim alegada exige asserted_by")
+        if not alegada and self.asserted_by is not None:
+            raise ValueError("asserted_by só é permitido em claim alegada")
+        return self
 
 
 class Participation(_Base):

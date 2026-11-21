@@ -49,6 +49,13 @@
       "status": "active",
       "version": 1
     },
+    "exerce_vigilancia_sobre": {
+      "content": "0872447a40074ff3",
+      "kind": "type",
+      "semantic": "2e94ec7f617b134b",
+      "status": "active",
+      "version": 1
+    },
     "filho_de": {
       "content": "75e2e22a1ce1ce92",
       "kind": "inverse",
@@ -147,17 +154,10 @@
       "status": "active",
       "version": 1
     },
-    "vigia": {
-      "content": "26687d58cde56bbc",
-      "kind": "type",
-      "semantic": "2e94ec7f617b134b",
-      "status": "active",
-      "version": 1
-    },
     "vigiado_por": {
       "content": "ab0bfe41b5e25341",
       "kind": "inverse",
-      "semantic": "18c551fa45b98513",
+      "semantic": "601d82eee5c1e5c8",
       "status": "active",
       "version": 1
     },

@@ -3,6 +3,7 @@
     "ClaimClass": {
       "enum": [
         "afirmada",
+        "alegada",
         "inferida",
         "coocorrencia",
         "interpretacao"
@@ -20,9 +21,29 @@
       ],
       "title": "ClaimState",
       "type": "string"
+    },
+    "NarrativeScope": {
+      "enum": [
+        "obra",
+        "texto_encaixado"
+      ],
+      "title": "NarrativeScope",
+      "type": "string"
     }
   },
   "properties": {
+    "assertedBy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Assertedby"
+    },
     "claimKey": {
       "title": "Claimkey",
       "type": "string"
@@ -37,6 +58,17 @@
     "id": {
       "title": "Id",
       "type": "string"
+    },
+    "narrativeScope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NarrativeScope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "objectId": {
       "title": "Objectid",

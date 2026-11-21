@@ -333,11 +333,11 @@
       "mappings_note": null
     },
     {
-      "id": "vigia",
+      "id": "exerce_vigilancia_sobre",
       "version": 1,
       "status": "active",
       "replaced_by": [],
-      "label": "Vigia",
+      "label": "Exerce vigilância sobre",
       "definition": "Observação ou escuta deliberada e repetida de uma pessoa por outra.",
       "when_to_use": "Vigilância de ofício, espionagem doméstica, escuta à porta, observação pela janela que se repete ou é notada pelo observado.\n",
       "when_not_to_use": "Não usar para um olhar isolado, para o público de uma cena, nem para \"espiar\" metafórico. Não usar quando o vigilante é um grupo difuso (os espectadores, a assembleia). Quando a vigilância vem junto de restrição física, anotar também exerce_coercao_sobre, em aresta separada.\n",

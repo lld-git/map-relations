@@ -271,11 +271,11 @@ types:
     disjoint_with: []
     disjoint_note: null
 
-  - id: vigia
+  - id: exerce_vigilancia_sobre
     version: 1
     status: active
     replaced_by: []
-    label: "Vigia"
+    label: "Exerce vigilância sobre"
     definition: "Observação ou escuta deliberada e repetida de uma pessoa por outra."
     when_to_use: >
       Vigilância de ofício, espionagem doméstica, escuta à porta, observação pela

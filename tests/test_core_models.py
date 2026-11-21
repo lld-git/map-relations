@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from map_relations.core.ids import (
+    _hash,
     claim_key,
     evidence_key,
     new_id,
@@ -18,9 +19,11 @@ from map_relations.core.models import (
     EntityKind,
     Evidence,
     Mention,
+    NarrativeScope,
     Participation,
     Pass,
     PassStopReason,
+    RelationType,
     Role,
     Segment,
     TargetType,
@@ -55,34 +58,88 @@ def test_nfc_normalizes_decomposed_text():
     assert len(nfc(decomposed)) == 4
 
 
+def _rt(id_: str = "t", symmetric: bool = False) -> RelationType:
+    return RelationType(
+        id=id_,
+        label=id_,
+        definition="d",
+        subject_kinds=[EntityKind.pessoa],
+        object_kinds=[EntityKind.pessoa],
+        version=1,
+        symmetric=symmetric,
+    )
+
+
 def test_content_keys_are_deterministic():
-    assert claim_key("s", "t", "o") == claim_key("s", "t", "o")
+    assert claim_key("s", _rt(), "o") == claim_key("s", _rt(), "o")
     assert participation_key("e", "p", "autor") == participation_key("e", "p", "autor")
     assert evidence_key("h", 0, 10) == evidence_key("h", 0, 10)
 
 
 def test_content_keys_differ_by_component():
-    assert claim_key("s", "t", "o") != claim_key("o", "t", "s")
+    assert claim_key("s", _rt(), "o") != claim_key("o", _rt(), "s")
     assert participation_key("e", "p", "autor") != participation_key("e", "p", "alvo")
     assert evidence_key("h", 0, 10) != evidence_key("h", 0, 11)
 
 
 def test_claim_key_no_juxtaposition_collision():
     # separador \x00 impede que ("ab","c") colida com ("a","bc")
-    assert claim_key("ab", "c", "x") != claim_key("a", "bc", "x")
+    assert claim_key("ab", _rt("c"), "x") != claim_key("a", _rt("bc"), "x")
 
 
 def test_claim_key_symmetric_ab_eq_ba():
-    assert claim_key("A", "t", "B", symmetric=True) == claim_key("B", "t", "A", symmetric=True)
+    sym = _rt(symmetric=True)
+    assert claim_key("A", sym, "B") == claim_key("B", sym, "A")
 
 
 def test_claim_key_nonsymmetric_ab_neq_ba():
-    assert claim_key("A", "t", "B") != claim_key("B", "t", "A")
+    assert claim_key("A", _rt(), "B") != claim_key("B", _rt(), "A")
 
 
-def test_claim_key_nonsymmetric_unchanged():
-    # chaves sem symmetric=True não mudam em relação à implementação anterior
-    assert claim_key("s", "t", "o") == claim_key("s", "t", "o", symmetric=False)
+def test_claim_key_plain_claim_equals_plain_hash():
+    # chave de claim comum continua hash(s, type_id, o), sem asserted_by/escopo
+    assert claim_key("s", _rt(), "o") == _hash("s", "t", "o")
+
+
+def test_claim_key_asserted_by_changes_key():
+    assert claim_key("s", _rt(), "o", asserted_by="x") != claim_key("s", _rt(), "o")
+    x = claim_key("s", _rt(), "o", asserted_by="x")
+    assert x != claim_key("s", _rt(), "o", asserted_by="y")
+
+
+def test_claim_key_narrative_scope_changes_key():
+    assert claim_key("s", _rt(), "o", narrative_scope="texto_encaixado") != claim_key(
+        "s", _rt(), "o"
+    )
+
+
+def test_claim_key_ignores_class():
+    # a classe não é parâmetro: afirmada e inferida para o mesmo trio têm a mesma chave
+    a = _claim(claim_key=claim_key("s", _rt(), "o"), claim_class=ClaimClass.afirmada)
+    b = _claim(claim_key=claim_key("s", _rt(), "o"), claim_class=ClaimClass.inferida)
+    assert a.claim_key == b.claim_key
+
+
+# ── claim alegada, asserted_by e narrative_scope ──────────────────────────────
+
+
+def test_alegada_requires_asserted_by():
+    with pytest.raises(ValidationError, match="asserted_by"):
+        _claim(claim_class=ClaimClass.alegada)
+    assert _claim(claim_class=ClaimClass.alegada, asserted_by="x").asserted_by == "x"
+
+
+def test_asserted_by_rejected_outside_alegada():
+    with pytest.raises(ValidationError, match="asserted_by"):
+        _claim(claim_class=ClaimClass.afirmada, asserted_by="x")
+
+
+def test_narrative_scope_validation():
+    assert _claim().narrative_scope is None
+    nested = _claim(narrative_scope="texto_encaixado")
+    assert nested.narrative_scope is NarrativeScope.texto_encaixado
+    with pytest.raises(ValidationError):
+        _claim(narrative_scope="sonho")
 
 
 # ── offsets ───────────────────────────────────────────────────────────────────

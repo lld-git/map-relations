@@ -1,6 +1,6 @@
 # Mapa de arquivos .py
 
-Atualizado em 2026-11-19, após o B04d (camada comum de layout, Opção B). Status possíveis:
+Atualizado em 2026-11-21, após o B02a (ontologia de relações). Status possíveis:
 **ativo** (no fluxo de execução), **só teste** (usado apenas por testes, em
 geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 **morto?** (candidato a remoção — conferir codigo_morto.txt).
@@ -8,12 +8,15 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | Arquivo | Papel | Quem importa | Status |
 |---|---|---|---|
 | research/map_relations/\_\_main\_\_.py | CLI: `python -m map_relations ingest <pdf>` | ninguém (ponto de entrada); tests/test_cli.py | ativo |
-| research/map_relations/core/ids.py | UUIDs, NFC e chaves de conteúdo (claim_key etc.) | core/models, core/ingest_contract, ingest/document, ingest/canonical; testes | ativo |
+| research/map_relations/core/ids.py | UUIDs, NFC e chaves de conteúdo (claim_key lê a simetria do RelationType; asserted_by/narrative_scope na chave) | core/models, core/ingest_contract, ingest/document, ingest/canonical; testes | ativo |
 | research/map_relations/core/models.py | 15 modelos Pydantic do domínio + enums | core/ingest_contract, core/rules, core/states, ingest/canonical, scripts/generate_schemas; testes | ativo |
 | research/map_relations/core/ingest_contract.py | IngestResult, Paragraph, locate() | core/protocols, ingest/canonical, ingest/pdf_loader, ingest/report; testes | ativo |
 | research/map_relations/core/protocols.py | Protocols: LlmEngine, SourceConnector, DocumentParser, ProjectStore; erros do motor | tests/test_contracts, tests/test_ingest_contract | só teste (contrato para B03+) |
 | research/map_relations/core/states.py | Tabela de transições do ADR 006 | core/rules; tests/test_states | ativo |
-| research/map_relations/core/rules.py | validate_claim_kinds, transition com ChangeLog | tests/test_rules | só teste (entra no pipeline em B05/B07) |
+| research/map_relations/core/rules.py | validate_claim_kinds, new_claim (único caminho de criação de claim), transition com ChangeLog | tests/test_rules | só teste (entra no pipeline em B05/B07) |
+| research/map_relations/core/ontology.py | modelos do YAML, build_ontology (junta todos os erros), canonicalize, ancestors/family, disjoint_conflicts, relation_types | core/rules, core/ontology_lock, ontology_io, scripts/generate_ontology; tests/test_ontology | ativo |
+| research/map_relations/core/ontology_lock.py | trava de ids (relations.lock.json), sem I/O | scripts/generate_ontology; tests/test_ontology | ativo |
+| research/map_relations/ontology_io.py | load_ontology: YAML seguro com rejeição de chave duplicada | \_\_main\_\_ (`ontology check`), scripts/generate_ontology; tests/test_ontology_io | ativo |
 | research/map_relations/ingest/document.py | compute_text_hash; re-exporta Source | ingest/markdown, ingest/url_loader; tests/test_ingest | ativo |
 | research/map_relations/ingest/markdown.py | convenção do .md, escape, render e parser único (ADR 008) | canonical, convert_*, \_\_main\_\_; tests/test_markdown | ativo |
 | research/map_relations/ingest/layout.py | camada comum (ADR 009): LayoutItem/BBox, join_crossing_items, classify_titles, drop_page_furniture, compute_body_band/apply_body_band | canonical, convert_docling, convert_txt, docling_compare; tests/test_layout, test_layout_band | ativo |
@@ -30,6 +33,7 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/nlp/ner.py | extract_mentions e unique_names com spaCy | tests/test_nlp | só teste (entra no pipeline em B05) |
 | research/map_relations/\*/\_\_init\_\_.py (11 arquivos) | marcadores de pacote, vazios | — | ativo |
 | scripts/generate_schemas.py | gera/verifica JSON Schemas em contracts/schemas | tests/test_contracts; CI (`--check`) | só script (e CI) |
+| scripts/generate_ontology.py | gera/verifica relation-types.json, ontology.json, relations.lock.json e ontology-file.json | CI (`--check`), `make schema` | só script (e CI) |
 | scripts/\_\_init\_\_.py | marcador de pacote | — | ativo |
 | docs/mapa/vulture_whitelist.py | whitelist do vulture (não é código do projeto) | make map | só script |
 | tests/test_cli.py | caminhos de erro da CLI | — | teste |
@@ -47,14 +51,17 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | tests/test_ingest.py | Source e compute_text_hash | — | teste |
 | tests/test_ingest_contract.py | B04: canônico, locate, relatório | — | teste |
 | tests/test_nlp.py | NER com modelo pt (marker requires_spacy_model) | — | teste |
-| tests/test_rules.py | kinds compatíveis, transition + ChangeLog | — | teste |
+| tests/test_rules.py | kinds compatíveis, new_claim (abstrato, obsoleto, reflexivo), transition + ChangeLog | — | teste |
+| tests/test_ontology.py | carregador, validação, canonicalize, conflitos, trava, geração | — | teste |
+| tests/test_ontology_io.py | YAML: chave duplicada, arquivo real | — | teste |
 | tests/test_states.py | todos os 5×5×2 pares de transição | — | teste |
 
-Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): dos 12 itens
-apontados, 11 são contratos/utilitários exercitados só em testes (locate,
-validate_claim_kinds, transition, is_terminal, docling_to_blocks,
-`furniture_hint` — carregado para diagnóstico, nenhuma regra o lê, ver B.1
-do plano B04d —, docling_range, PdfParser, write_processed,
-extract_mentions, unique_names) — parte aguarda os blocos B02–B07 — e
-`load_url` é o único candidato real a dívida (migração pendente ao
+Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): os itens
+apontados são contratos/utilitários exercitados só em testes (locate,
+transition, new_claim, is_terminal, docling_to_blocks, `furniture_hint` —
+carregado para diagnóstico, nenhuma regra o lê, ver B.1 do plano B04d —,
+PdfParser, write_processed, extract_mentions, unique_names, consultas de
+`Ontology` como canonicalize/family/disjoint_conflicts, campos editoriais do
+YAML da ontologia e os enums do escopo narrativo) — parte aguarda os blocos
+B02–B07 — e `load_url` é o único candidato real a dívida (migração pendente ao
 contrato de ingestão).

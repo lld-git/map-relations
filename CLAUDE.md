@@ -94,7 +94,7 @@ mention: id, entityId, segmentId, startOffset, endOffset, surface
 relationType: id, label, definition, subjectKinds, objectKinds, version
 source: id, title, kind, publishedAt?, contentHash
 segment: id, sourceId, chapter?, startOffset, endOffset, text
-claim: id, subjectId, typeId, objectId, class, state, confidence, passId
+claim: id, subjectId, typeId, objectId, class, assertedBy?, narrativeScope?, state, confidence, passId
 participation: id, eventId, entityId, role, state, confidence, passId
 evidence: id, targetType, targetId, sourceId, startOffset, endOffset, quote
 timeScope: targetType, targetId, storyTime?, publishedAt?, chapter?, duration?
@@ -107,7 +107,9 @@ note: id, targetType, targetId, kind, content, createdAt
 kind: pessoa | grupo | lugar | objeto | evento
 targetType: claim | participation | entity
 role: lista versionada em contracts, iniciando com autor | alvo | testemunha | beneficiario | participante
-class: afirmada | inferida | coocorrencia | interpretacao
+class: afirmada | alegada | inferida | coocorrencia | interpretacao
+assertedBy: id da entidade que afirma; obrigatório se e somente se class = alegada
+narrativeScope: obra | texto_encaixado (ausente equivale a obra)
 state: proposta | verificada | rejeitada | confirmada_humano | rejeitada_humano
 
 ## Contrato do motor
@@ -135,6 +137,7 @@ Implementar modelos Pydantic, IDs estáveis e regras de transição de estado.
 O modelo é genérico: entidades de qualquer kind, claims entre quaisquer entidades,
 participation para eventos e changeLog para auditoria. A V1 usa só kind pessoa.
 Validar subjectKinds e objectKinds de relationType ao criar uma claim.
+Toda claim nasce por `rules.new_claim` (rejeita tipo abstrato, obsoleto e reflexivo; disjunção só alerta).
 Participation e claim compartilham estados, evidência, verificador e regra humana.
 Gerar JSON Schema em contracts/schemas a partir dos modelos.
 Criar os Protocols LlmEngine, SourceConnector, DocumentParser e ProjectStore.
@@ -161,9 +164,16 @@ Pronto quando: todo offset do gabarito converte em capítulo e parágrafo, e o
 parágrafo devolvido contém o trecho citado.
 
 ### B02: avaliação
-Criar eval/gold/processo.json com capítulos, relações e apelidos.
-O arquivo começa com exemplos marcados como fictícios; o humano preencherá o gabarito.
-Criar comando eval --run <arquivo> --gold <arquivo>.
+Gabarito da obra de teste em `data/golden/<obra>.json` (fora do Git: cita texto
+protegido). `eval/gold/` só recebe gabaritos de obras em domínio público e
+fixtures sintéticas. O gabarito usa os ids de `contracts/ontology/relations.yaml`,
+as classes do contrato (incluindo `alegada` com `asserted_by`) e
+`narrative_scope` (`obra | texto_encaixado`). Tipos são normalizados por
+`Ontology.canonicalize` antes da comparação. A V1 avalia só o escopo `obra`.
+Criar comando `eval --run <arquivo> --gold <arquivo>` (sem padrão apontando para
+`data/golden/`).
+O arquivo de gabarito começa com exemplos marcados como fictícios; o humano
+preencherá o gabarito.
 Calcular precisão, recall e F1 por tipo, classe, nível e lente, provas localizadas
 e JSON válido. Incluir recall de pessoas e pares de controle sem relação.
 Comparar relações depois de normalizar nomes por alias.

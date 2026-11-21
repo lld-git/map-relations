@@ -220,14 +220,14 @@ def test_canonicalize():
 
 def test_ancestors_and_family():
     onto = load_ontology(REAL)
-    assert onto.ancestors("vigia") == ["relacao_de_poder"]
+    assert onto.ancestors("exerce_vigilancia_sobre") == ["relacao_de_poder"]
     assert onto.ancestors("relacao_de_poder") == []
-    assert set(onto.family("vigia")) == {
+    assert set(onto.family("exerce_vigilancia_sobre")) == {
         "superior_hierarquico_de",
         "exerce_coercao_sobre",
-        "vigia",
+        "exerce_vigilancia_sobre",
     }
-    assert onto.family("relacao_de_poder") == onto.family("vigia")
+    assert onto.family("relacao_de_poder") == onto.family("exerce_vigilancia_sobre")
 
 
 def test_disjoint_conflicts():

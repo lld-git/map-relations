@@ -104,8 +104,8 @@
     "symmetric": false
   },
   {
-    "id": "vigia",
-    "label": "Vigia",
+    "id": "exerce_vigilancia_sobre",
+    "label": "Exerce vigilância sobre",
     "definition": "Observação ou escuta deliberada e repetida de uma pessoa por outra.",
     "subjectKinds": [
       "pessoa"
