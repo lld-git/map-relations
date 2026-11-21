@@ -23,6 +23,8 @@ typecheck:
 
 schema-check:
 	$(RUN) uv run python -m scripts.generate_schemas --check
+	$(RUN) uv run python -m map_relations ontology check
+	$(RUN) uv run python -m scripts.generate_ontology --check
 
 check: lint typecheck schema-check test
 

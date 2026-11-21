@@ -1,0 +1,316 @@
+{
+  "$defs": {
+    "AbstractTypeDef": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        },
+        "domain": {
+          "items": {
+            "$ref": "#/$defs/EntityKind"
+          },
+          "title": "Domain",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "range": {
+          "items": {
+            "$ref": "#/$defs/EntityKind"
+          },
+          "title": "Range",
+          "type": "array"
+        },
+        "replaced_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Replaced By",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "default": "active"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "definition",
+        "domain",
+        "range"
+      ],
+      "title": "AbstractTypeDef",
+      "type": "object"
+    },
+    "EntityKind": {
+      "enum": [
+        "pessoa",
+        "grupo",
+        "lugar",
+        "objeto",
+        "evento"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "InverseDef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "InverseDef",
+      "type": "object"
+    },
+    "Mappings": {
+      "additionalProperties": false,
+      "properties": {
+        "foaf": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Foaf"
+        },
+        "schema_org": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema Org"
+        },
+        "wikidata": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wikidata"
+        }
+      },
+      "title": "Mappings",
+      "type": "object"
+    },
+    "Status": {
+      "enum": [
+        "active",
+        "obsolete"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "TypeDef": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "title": "Definition",
+          "type": "string"
+        },
+        "disjoint_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Disjoint Note"
+        },
+        "disjoint_with": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Disjoint With",
+          "type": "array"
+        },
+        "domain": {
+          "items": {
+            "$ref": "#/$defs/EntityKind"
+          },
+          "title": "Domain",
+          "type": "array"
+        },
+        "example": {
+          "title": "Example",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "inverse_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InverseDef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "irreflexive": {
+          "title": "Irreflexive",
+          "type": "boolean"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "mappings": {
+          "$ref": "#/$defs/Mappings"
+        },
+        "mappings_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mappings Note"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent"
+        },
+        "range": {
+          "items": {
+            "$ref": "#/$defs/EntityKind"
+          },
+          "title": "Range",
+          "type": "array"
+        },
+        "replaced_by": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Replaced By",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/Status",
+          "default": "active"
+        },
+        "symmetric": {
+          "title": "Symmetric",
+          "type": "boolean"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "when_not_to_use": {
+          "title": "When Not To Use",
+          "type": "string"
+        },
+        "when_to_use": {
+          "title": "When To Use",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "label",
+        "definition",
+        "when_to_use",
+        "when_not_to_use",
+        "example",
+        "domain",
+        "range",
+        "symmetric",
+        "irreflexive"
+      ],
+      "title": "TypeDef",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "abstract_types": {
+      "items": {
+        "$ref": "#/$defs/AbstractTypeDef"
+      },
+      "title": "Abstract Types",
+      "type": "array"
+    },
+    "types": {
+      "items": {
+        "$ref": "#/$defs/TypeDef"
+      },
+      "title": "Types",
+      "type": "array"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "abstract_types",
+    "types"
+  ],
+  "title": "OntologyFile",
+  "type": "object"
+}

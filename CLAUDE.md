@@ -67,6 +67,7 @@ Cliente de IA só por adaptador compatível com OpenAI.
 
 ## Estrutura
 contracts/schemas
+contracts/ontology
 contracts/prompts
 contracts/lenses
 contracts/cases

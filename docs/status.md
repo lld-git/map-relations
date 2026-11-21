@@ -205,6 +205,46 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Handoff
 
+**B02a, parte da ontologia, concluída** (branch `b02a-ontologia`, a partir do
+master; sem push). Entregue: `contracts/ontology/relations.yaml` no formato
+final (D1–D6; 12 anotáveis, 5 abstratos; mappings de `parente_de` movidos para
+`mappings_note`); `core/ontology.py` (modelos, `build_ontology` reunindo todos
+os erros, `canonicalize`, `ancestors`, `family`, `disjoint_conflicts`,
+`relation_types`); `core/ontology_lock.py` (trava de ids);
+`ontology_io.py` (YAML com rejeição de chave duplicada); `scripts/generate_ontology.py`
+(+ `--check`) gerando `relation-types.json`, `ontology.json`, `relations.lock.json`
+e `contracts/schemas/ontology-file.json`; CLI `python -m map_relations ontology check`;
+`make schema-check` e o CI conferem tudo; `pyyaml` explícito + `types-PyYAML` (dev),
+`uv.lock` atualizado dentro do contêiner. 42 testes novos (257 no total).
+`make check` e os dois jobs do CI (reproduzidos de uma cópia limpa do índice) verdes.
+`grep -rniE "grubach|bürstner|kafka|josef" contracts/ontology/` sem resultado.
+
+**Ainda NÃO feito do B02a (próximo passo exato):** §3–§4 do plano
+([docs/plans/B02a.md](plans/B02a.md)): (1) `claim_key(subject_id, relation_type, object_id,
+*, asserted_by=None, narrative_scope=None)` sem o parâmetro `symmetric` e reescrever
+as 3 asserções do B01b; (2) `rules.new_claim(...)` com `AbstractType`, `ObsoleteType`,
+`ReflexiveClaim`; (3) `ClaimClass.alegada`, `Claim.asserted_by` (validador
+"se e somente se alegada"), `Claim.narrative_scope` (`obra | texto_encaixado`) e
+regenerar `claim.json`; (4) CLAUDE.md: linha da claim, lista de classes e seção B02 (§5);
+(5) ADR 011, `docs/architecture.md`, `docs/mapa`, `docs/phases.md`, `docs/blocks/B02a.md`.
+Depois, B02.
+
+**Pontos para o Leon:** (a) o id `vigia` é ambíguo (verbo/substantivo) e os ids
+estão congelados a partir deste commit; renomear agora é de graça, depois exige
+obsolescência. (b) A trava protege só a parte semântica dos tipos abstratos (não têm
+`version`); a visão inversa herda o `version` do dono. (c) Erros estruturais
+(chave desconhecida, campo faltando) param antes das regras semânticas; os demais
+saem todos juntos. (d) Pendência 10 do plano (`age_em_nome_de` × `representa_juridicamente`)
+segue para a avaliação por família no B02. (e) `uv lock` exige montar o diretório
+(`docker run -v "$PWD":/work -w /work maprelations-app uv lock`): o bind do arquivo
+dá "Device or resource busy".
+
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02a.md; `make check` verde.
+
+---
+
+### Handoff anterior (B04f/B04e/B04d)
+
 **B04f está fechado** (branch `b04f-falas`, a partir do master com o B04e já
 mesclado; sem push desta sessão). Marcador de lista do Docling preservado no
 bloco e escape de travessão/hífen de fala só no início da linha do
