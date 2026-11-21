@@ -33,6 +33,7 @@ from .layout import (
     apply_body_band,
     classify_titles,
     compute_body_band,
+    detect_chapter_subtitle_alerts,
     join_crossing_items,
     normalize_bbox,
     renumber,
@@ -178,8 +179,10 @@ def docling_items(
 
 def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
     """Classifica os itens já unidos em blocos (precedência global de títulos,
-    delegada a layout.classify_titles)."""
-    kinds, alerts = classify_titles(items)
+    delegada a layout.classify_titles) e detecta subtítulo de capítulo
+    suspeito (B04e, layout.detect_chapter_subtitle_alerts)."""
+    kinds, title_alerts = classify_titles(items)
+    alerts = detect_chapter_subtitle_alerts(items) + title_alerts
     blocks = [MdBlock(it.text, kind, it.page) for it, kind in zip(items, kinds)]
     return blocks, alerts
 

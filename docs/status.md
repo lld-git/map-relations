@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-19 (B04d fechado)
+# Status — atualizado em 2026-11-20 (B04e fechado)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -97,6 +97,21 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   faixa simplesmente não teve o que corrigir). `make check` e os dois jobs
   do CI (test + build-prod) verdes localmente. Plano completo e relatório:
   [docs/plans/B04d.md](plans/B04d.md), [docs/blocks/B04d.md](blocks/B04d.md).
+  **Mesclado no master** via PR #2 (2026-11-20, commit `5b3fb28`).
+- **B04e** — branch `b04e-subtitulo`, a partir do master com o B04d já
+  mesclado. Correção genérica no E2: o primeiro bloco depois de um título
+  explícito de capítulo (o subtítulo, ex. "Conversa com a senhora
+  Grubach...") nunca é unido ao seguinte por `join_crossing_items` — evita
+  fundir um subtítulo sem ponto final com a primeira frase da página
+  seguinte. Exceção preservada: palavra hifenizada na fronteira continua
+  unida mesmo logo depois de um título (é a mesma palavra partida, nunca
+  um subtítulo) — sem isso um teste real de hifenização quebrava.
+  `layout.detect_chapter_subtitle_alerts` gera o alerta "possível
+  subtítulo de capítulo" para esse bloco quando tem até 15 palavras e não
+  termina em pontuação final, ligado nas duas rotas (Docling via
+  `items_to_blocks`; pdf_loader/TXT/pandoc via `layout_items_to_blocks`).
+  4 testes novos (217 no total). `make check` e os dois jobs do CI (test +
+  build-prod) verdes localmente. Relatório: [docs/blocks/B04e.md](blocks/B04e.md).
 
 ## Pendências
 
@@ -146,7 +161,11 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Handoff
 
-**B04d está fechado** (branch `b04d-cabecalho`, não mesclada/sem push).
+**B04e está fechado** (branch `b04e-subtitulo`, a partir do master com o
+B04d já mesclado via PR #2; sem push desta sessão). Correção pontual do
+E2 — ver bullet acima e [docs/blocks/B04e.md](blocks/B04e.md).
+
+**B04d está fechado e mesclado no master** (PR #2, commit `5b3fb28`).
 Critério de pronto do plano revisado item a item:
 
 1. `make check` e os dois jobs do CI (test + build-prod) verdes localmente
@@ -184,13 +203,13 @@ regra da faixa"); a decisão real ficou com bbox + `_within_band`
 (`layout.apply_body_band`), e `furniture_hint` continua carregado só para
 diagnóstico, nunca lido por nenhuma regra.
 
-**Próximo bloco (fora do B04d):** resto do B04 (TXT/EPUB), migração do
+**Próximo bloco (fora do B04d/B04e):** resto do B04 (TXT/EPUB), migração do
 `url_loader`, B02 (gabarito e comando eval), ou abrir um bloco para a
 unificação de títulos pdf_loader/Docling — decisão do Leon sobre qual vem
 primeiro.
 
 **Como retomar:** ler CLAUDE.md e este arquivo; `make check` deve passar
-(lint + typecheck + schema-check + 213 testes em Docker); `make map`
+(lint + typecheck + schema-check + 217 testes em Docker); `make map`
 regenera o mapa. A CLI de ingestão é `make ingest PDF=<arquivo em
 data/raw>`; `make compare PDF=<arquivo> [--converter docling|pdf_loader]`
 (via `python -m map_relations compare ... --converter`). docling-core é

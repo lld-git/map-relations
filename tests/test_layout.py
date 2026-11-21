@@ -10,6 +10,7 @@ from map_relations.ingest.layout import (
     LayoutItem,
     LayoutLabel,
     classify_titles,
+    detect_chapter_subtitle_alerts,
     drop_page_furniture,
     join_crossing_items,
     normalize_bbox,
@@ -179,6 +180,57 @@ def test_join_crossing_items_does_not_join_dialogue_dash():
         "Josef K. ainda hesitava quando ela disse",
         "— Não se preocupe, isso é normal.",
     ]
+
+
+def test_join_crossing_items_subtitle_blocked_but_common_paragraph_still_joins():
+    """B04e: o subtítulo de capítulo (bloco logo depois de um título
+    explícito) nunca funde com a página seguinte pela regra do E2, mas um
+    parágrafo comum mais adiante no mesmo documento continua sendo unido
+    normalmente."""
+    page1 = [
+        _texto(0, "Capítulo II"),
+        _texto(1, "Conversa com a senhora Grubach"),
+    ]
+    page2 = [
+        _texto(0, "Josef K. acordou tarde naquela manhã.", page=2),
+        _texto(1, "Mais tarde seguiu sem resolução por", page=2),
+    ]
+    page3 = [_texto(0, "semanas inteiras.", page=3)]
+    out = join_crossing_items([page1, page2, page3])
+    assert [it.text for it in out] == [
+        "Capítulo II",
+        "Conversa com a senhora Grubach",
+        "Josef K. acordou tarde naquela manhã.",
+        "Mais tarde seguiu sem resolução por semanas inteiras.",
+    ]
+
+
+# ── alerta de subtítulo de capítulo (B04e) ───────────────────────────────────
+
+
+def test_detect_chapter_subtitle_alerts_flags_short_block_after_title():
+    items = [
+        _texto(0, "Capítulo II"),
+        _texto(1, "Conversa com a senhora Grubach"),
+    ]
+    alerts = detect_chapter_subtitle_alerts(items)
+    assert len(alerts) == 1
+    assert "possível subtítulo de capítulo" in alerts[0]
+    assert "Conversa com a senhora Grubach" in alerts[0]
+
+
+def test_detect_chapter_subtitle_alerts_ignores_block_ending_in_punctuation():
+    items = [
+        _texto(0, "Capítulo II"),
+        _texto(1, "Josef K. acordou tarde naquela manhã."),
+    ]
+    assert detect_chapter_subtitle_alerts(items) == []
+
+
+def test_detect_chapter_subtitle_alerts_ignores_long_block():
+    long_text = " ".join(["palavra"] * 16)
+    items = [_texto(0, "Capítulo II"), _texto(1, long_text)]
+    assert detect_chapter_subtitle_alerts(items) == []
 
 
 # ── precedência de títulos (fase 2.2) ────────────────────────────────────────
