@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-20 (B04e fechado)
+# Status — atualizado em 2026-11-21 (B04f falas)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -113,6 +113,39 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   4 testes novos (217 no total). `make check` e os dois jobs do CI (test +
   build-prod) verdes localmente. Relatório: [docs/blocks/B04e.md](blocks/B04e.md).
 
+- **B04f** — branch `b04f-falas`, a partir do master com o B04e já mesclado.
+  Travessão/hífen de fala não se perdia mais na extração, mas sobrevivia só
+  até o `documento.md`: editores Markdown liam a linha como item de lista.
+  Duas correções: (1) `convert_docling.items_to_blocks` agora usa
+  `marker + " " + text` para item `list_item` do Docling (o marcador já
+  chegava em `LayoutItem.marker`, mas não era usado ao montar o bloco);
+  (2) `markdown.render_markdown`/`parse_blocks` escapam com `\` só o início
+  de linha de parágrafo que começa com `-`, `–`, `—` ou `―` — o canônico não
+  muda, só o `.md` deixa de ser lido como lista; hífen no meio da linha
+  continua sem escape. 3 testes novos (220 no total):
+  `test_list_item_keeps_docling_marker_as_dash_prefix` em
+  `test_docling_ranges.py`; `test_leading_dash_escaped_in_md_but_not_in_canonical`
+  e `test_dash_in_middle_of_line_is_not_escaped` em `test_markdown.py`.
+  `make check` (lint/typecheck/schema-check/test, escopados a
+  research/tests/scripts — ver nota abaixo) e os dois jobs do CI (test +
+  build-prod, reproduzidos localmente a partir de uma cópia limpa do índice
+  do git, sem os arquivos não versionados) verdes. Sem push desta sessão.
+
+**Nota sobre `make check` nesta sessão:** `ruff check .` (alvo `lint` do
+Makefile) falha por 10 erros em `golden_scripts/` — diretório não
+versionado, de um trabalho anterior não relacionado a este bloco (confirmado
+com `git stash`: o erro já existia antes de qualquer mudança do B04f). Não é
+baked só por estar no disco: a imagem Docker local tem `golden_scripts/`
+copiado em camada (`COPY --chown=appuser:appuser . .` no Dockerfile), então
+mesmo movendo a pasta do host o container antigo ainda a via — só desaparece
+reconstruindo a imagem a partir de um contexto sem ela. Por isso os dois jobs
+do CI foram reproduzidos localmente com `git checkout-index` (cópia só do
+que está no índice do git, igual ao `actions/checkout` real) em vez de
+`docker compose`, que usa o diretório de trabalho inteiro. `ruff check .`
+passa nessa cópia limpa — a falha é só do disco local. Resolver
+`golden_scripts/` (versionar, mover para fora do contexto Docker ou
+corrigir o lint) é decisão do Leon, fora do escopo deste bloco.
+
 ## Pendências
 
 - **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
@@ -160,6 +193,13 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
 
 ## Handoff
+
+**B04f está fechado** (branch `b04f-falas`, a partir do master com o B04e já
+mesclado; sem push desta sessão). Marcador de lista do Docling preservado no
+bloco e escape de travessão/hífen de fala só no início da linha do
+`documento.md` — ver bullet B04f acima. Sem relatório dedicado em
+`docs/blocks/` (bloco pequeno, pontual); detalhe completo no bullet do
+Status.
 
 **B04e está fechado** (branch `b04e-subtitulo`, a partir do master com o
 B04d já mesclado via PR #2; sem push desta sessão). Correção pontual do

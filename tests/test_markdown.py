@@ -94,6 +94,23 @@ def test_render_parse_roundtrip_preserves_structure():
     assert [p.page for p in r.paragraphs] == [1, 1, 1, 2]
 
 
+def test_leading_dash_escaped_in_md_but_not_in_canonical():
+    for dash in ("-", "–", "—", "―"):
+        text = f"{dash} fala"
+        md = render_markdown([MdBlock(text, ParagraphKind.texto)])
+        assert f"\\{dash} fala" in md  # escapado no .md
+        r = parse_markdown(md, title="t", kind="pdf")
+        assert r.text == text  # canônico não muda
+
+
+def test_dash_in_middle_of_line_is_not_escaped():
+    text = "ele disse - não vou - e saiu"
+    md = render_markdown([MdBlock(text, ParagraphKind.texto)])
+    assert "\\-" not in md
+    r = parse_markdown(md, title="t", kind="pdf")
+    assert r.text == text
+
+
 def test_human_edit_changes_canonical_hash():
     """Regra de integridade do ADR 008: editar o .md muda o hash canônico."""
     before = parse_markdown(MD, title="t", kind="pdf")

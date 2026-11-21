@@ -35,6 +35,11 @@ _PAGE_MARKER_RE = re.compile(r"^<!--\s*p\.(\d+)\s*-->$")
 # ordem importa: barra primeiro no escape, por último no unescape
 _ESCAPES = [("\\", "\\\\"), ("#", "\\#"), ("*", "\\*"), ("<!--", "<\\!--")]
 
+# travessão/hífen de fala no início de uma linha de parágrafo: escapado com
+# "\" só aí (nunca no meio da linha), para editores Markdown não lerem como
+# item de lista. O canônico nunca vê essa barra — é des-escapada ao ler.
+_LEADING_DASHES = ("-", "–", "—", "―")
+
 
 @dataclass
 class MdBlock:
@@ -79,6 +84,8 @@ def render_markdown(blocks: list[MdBlock]) -> str:
         elif block.kind is ParagraphKind.subtitulo:
             out.append(f"*{text}*")
         else:
+            if text.startswith(_LEADING_DASHES):
+                text = "\\" + text
             out.append(text)
     return "\n\n".join(out) + ("\n" if out else "")
 
@@ -115,6 +122,8 @@ def parse_blocks(md: str) -> list[MdBlock]:
             previous_was_title = False
             continue
         previous_was_title = False
+        if len(line) > 1 and line[0] == "\\" and line[1] in _LEADING_DASHES:
+            line = line[1:]
         # parágrafo: quebras internas viram espaço (canônico é uma linha por bloco)
         flat = re.sub(r"\s+", " ", unescape_md(line)).strip()
         if flat:

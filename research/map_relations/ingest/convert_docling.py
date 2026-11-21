@@ -177,13 +177,22 @@ def docling_items(
     return items, alerts, pages
 
 
+def _block_text(item: LayoutItem) -> str:
+    """Texto do bloco: item de lista leva o marcador do Docling na frente
+    (ex. "- fala"), senão o travessão ou hífen de fala da obra se perde —
+    `LayoutItem.marker` já chega preenchido de `docling_items`."""
+    if item.label is LayoutLabel.lista and item.marker:
+        return f"{item.marker} {item.text}"
+    return item.text
+
+
 def items_to_blocks(items: list[LayoutItem]) -> tuple[list[MdBlock], list[str]]:
     """Classifica os itens já unidos em blocos (precedência global de títulos,
     delegada a layout.classify_titles) e detecta subtítulo de capítulo
     suspeito (B04e, layout.detect_chapter_subtitle_alerts)."""
     kinds, title_alerts = classify_titles(items)
     alerts = detect_chapter_subtitle_alerts(items) + title_alerts
-    blocks = [MdBlock(it.text, kind, it.page) for it, kind in zip(items, kinds)]
+    blocks = [MdBlock(_block_text(it), kind, it.page) for it, kind in zip(items, kinds)]
     return blocks, alerts
 
 

@@ -2,7 +2,7 @@
 absoluta e regra de parágrafo que atravessa a fronteira (B04c)."""
 
 from map_relations.core.ingest_contract import ParagraphKind
-from map_relations.ingest.convert_docling import merge_range_docs
+from map_relations.ingest.convert_docling import docling_to_blocks, merge_range_docs
 from map_relations.ingest.markdown import parse_markdown, render_markdown
 from map_relations.ingest.pdf_loader import page_ranges
 
@@ -67,6 +67,30 @@ def test_title_at_boundary_never_joined():
     b = _doc([3, 4], [("section_header", "Capítulo II", 3)])
     blocks, _, _, _ = merge_range_docs([a, b])
     assert any(x.kind is ParagraphKind.titulo and x.text == "Capítulo II" for x in blocks)
+
+
+def test_list_item_keeps_docling_marker_as_dash_prefix():
+    # travessão de fala do Docling chega como list_item + marker="-"; sem o
+    # marcador na frente do texto, a fala vira um parágrafo qualquer.
+    doc = {
+        "pages": {"1": {}},
+        "body": {"children": [{"$ref": "#/texts/0"}]},
+        "texts": [
+            {
+                "label": "list_item",
+                "text": "Entre, disse ele.",
+                "marker": "-",
+                "prov": [{"page_no": 1}],
+            }
+        ],
+    }
+    blocks, _, _, _ = docling_to_blocks(doc)
+    assert [b.text for b in blocks] == ["- Entre, disse ele."]
+
+    # redonda-se pelo .md sem a fala virar item de lista para o parser
+    md = render_markdown(blocks)
+    r = parse_markdown(md, title="t", kind="pdf")
+    assert r.text == "- Entre, disse ele."
 
 
 def _doc_with_bbox(pages: list[int], items: list[tuple[str, str, int]]) -> dict:
