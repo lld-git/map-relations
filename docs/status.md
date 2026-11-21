@@ -131,20 +131,31 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   build-prod, reproduzidos localmente a partir de uma cópia limpa do índice
   do git, sem os arquivos não versionados) verdes. Sem push desta sessão.
 
-**Nota sobre `make check` nesta sessão:** `ruff check .` (alvo `lint` do
-Makefile) falha por 10 erros em `golden_scripts/` — diretório não
-versionado, de um trabalho anterior não relacionado a este bloco (confirmado
-com `git stash`: o erro já existia antes de qualquer mudança do B04f). Não é
-baked só por estar no disco: a imagem Docker local tem `golden_scripts/`
-copiado em camada (`COPY --chown=appuser:appuser . .` no Dockerfile), então
-mesmo movendo a pasta do host o container antigo ainda a via — só desaparece
-reconstruindo a imagem a partir de um contexto sem ela. Por isso os dois jobs
-do CI foram reproduzidos localmente com `git checkout-index` (cópia só do
-que está no índice do git, igual ao `actions/checkout` real) em vez de
-`docker compose`, que usa o diretório de trabalho inteiro. `ruff check .`
-passa nessa cópia limpa — a falha é só do disco local. Resolver
-`golden_scripts/` (versionar, mover para fora do contexto Docker ou
-corrigir o lint) é decisão do Leon, fora do escopo deste bloco.
+- **Infra (mesma sessão, após o B04f)** — resolvida a nota acima sobre
+  `golden_scripts/`: `pyproject.toml` agora exclui `golden_scripts/` do
+  ruff (`[tool.ruff] extend-exclude`) e do mypy (`[tool.mypy] exclude`,
+  junto com `docs/mapa/vulture_whitelist.py` — achado ao tirar a restrição
+  manual de escopo: esse arquivo não é código executável do projeto,
+  mesma categoria do `golden_scripts/`, e `mypy .` sem exclusão o
+  rejeitava com "Cannot access instance-only attribute"). `make typecheck`
+  e o job `test` do CI passaram a rodar `mypy .` (sem a lista manual
+  `research tests scripts`); `make lint` já rodava `ruff check .`.
+  `.dockerignore` já excluía `golden_scripts/` e `data/golden/` (preso no
+  working tree, nunca comitado — comitado agora junto). A imagem Docker
+  local (`maprelations-app`) estava com `golden_scripts/` preso de uma
+  camada `COPY` anterior ao `.dockerignore` atual; reconstruída do zero,
+  confirmado que não aparece mais. `make check` roda o projeto inteiro
+  sem restrição manual de escopo, verde (220 testes).
+  Imagens Docker padronizadas: `painel` não tem mais `build:` próprio —
+  usa `image: maprelations-app`, a mesma do serviço `app` (nomeada
+  explicitamente no compose, igual ao nome que o Compose já gerava, agora
+  fixo); a tarefa `build-prod` do CI já usava `map-relations-prod` (sem
+  mudança). Registrado em CLAUDE.md (princípio 14): nome de imagem só vem
+  do Makefile/docker-compose.yml, nunca `docker build`/`tag` manual fora
+  disso, e `docker image prune` depois de todo rebuild — a VM do Docker
+  Desktop aqui tem pouco espaço (ficou em ~2 GiB livres durante esta
+  sessão; `docker image prune -f` e `docker builder prune -f` liberaram
+  o suficiente para a imagem `dev` reconstruir).
 
 ## Pendências
 
@@ -200,6 +211,13 @@ bloco e escape de travessão/hífen de fala só no início da linha do
 `documento.md` — ver bullet B04f acima. Sem relatório dedicado em
 `docs/blocks/` (bloco pequeno, pontual); detalhe completo no bullet do
 Status.
+
+**Infra de lint/typecheck/Docker corrigida na mesma sessão, mesma branch**
+(commit separado, depois do B04f): `golden_scripts/` excluído de
+ruff/mypy via `pyproject.toml`; `make check` roda sem escopo manual;
+`painel` reusa a imagem `maprelations-app` em vez de buildar a própria;
+princípio novo no CLAUDE.md sobre nome de imagem e `docker image prune`
+— ver bullet "Infra" acima.
 
 **B04e está fechado** (branch `b04e-subtitulo`, a partir do master com o
 B04d já mesclado via PR #2; sem push desta sessão). Correção pontual do

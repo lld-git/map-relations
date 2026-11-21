@@ -20,7 +20,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker run --rm map-relations-dev uv run ruff check .
-      - run: docker run --rm map-relations-dev uv run mypy research tests scripts
+      - run: docker run --rm map-relations-dev uv run mypy .
       - run: docker run --rm map-relations-dev uv run python -m scripts.generate_schemas --check
       - run: docker run --rm map-relations-dev uv run pytest
 

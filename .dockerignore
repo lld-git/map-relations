@@ -26,3 +26,5 @@ eval/reviews/
 docs/
 .vscode/
 .idea/
+golden_scripts/
+data/golden/

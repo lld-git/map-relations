@@ -19,7 +19,7 @@ lint:
 	$(RUN) uv run ruff check .
 
 typecheck:
-	$(RUN) uv run mypy research tests scripts
+	$(RUN) uv run mypy .
 
 schema-check:
 	$(RUN) uv run python -m scripts.generate_schemas --check
