@@ -11,6 +11,7 @@ dependencies = [
     "httpx>=0.27",
     "pypdf>=4.3",
     "trafilatura>=1.12",
+    "pyyaml>=6.0",
 ]
 
 [dependency-groups]
@@ -22,6 +23,7 @@ dev = [
     "pydantic>=2.9",
     "pydeps>=1.12",
     "vulture>=2.11",
+    "types-PyYAML>=6.0",
     # só para o teste de exaustividade do mapa de rótulos do Docling
     # (B04d B.2); o serviço docling roda isolado, com a imagem própria.
     # Versão fixa, igual à do serviço docling (docker/docling/Dockerfile) —

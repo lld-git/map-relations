@@ -96,7 +96,7 @@ All targets run inside the container via `docker compose`.
 | `make test` | pytest |
 | `make lint` | ruff |
 | `make typecheck` | mypy on research, tests, and scripts |
-| `make schema-check` | fails if JSON Schemas in contracts/ are out of date |
+| `make schema-check` | fails if JSON Schemas or the relation ontology artifacts (contracts/ontology/) are out of date, or if relations.yaml is invalid |
 | `make check` | lint + typecheck + schema-check + test |
 | `make ingest PDF=<file>` | document from `data/raw/` → `data/processed/<hash>/` (runs Docling if cache is missing) |
 | `make map` | generates `docs/mapa/imports.svg` (pydeps) and `docs/mapa/codigo_morto.txt` (vulture) |

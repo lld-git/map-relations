@@ -11,13 +11,19 @@ from map_relations.core.models import (
     ClaimState,
     Entity,
     EntityKind,
+    NarrativeScope,
     Participation,
     RelationType,
     Role,
     TargetType,
 )
+from map_relations.core.ontology import Status
 from map_relations.core.rules import (
+    AbstractType,
     IncompatibleKinds,
+    ObsoleteType,
+    ReflexiveClaim,
+    new_claim,
     transition,
     validate_claim_kinds,
 )
@@ -39,7 +45,7 @@ ACUSA = RelationType(
 
 def _claim(subject: Entity, object_: Entity, state: ClaimState = ClaimState.proposta) -> Claim:
     return Claim(
-        claim_key=claim_key(subject.id, ACUSA.id, object_.id),
+        claim_key=claim_key(subject.id, ACUSA, object_.id),
         subject_id=subject.id,
         type_id=ACUSA.id,
         object_id=object_.id,
@@ -153,3 +159,108 @@ def test_participation_key_upsert_identity():
     a = participation_key("ev", "ent", Role.autor.value)
     b = participation_key("ev", "ent", Role.autor.value)
     assert a == b
+
+
+# ── new_claim ─────────────────────────────────────────────────────────────────
+
+
+def _onto(**type_extra):
+    from map_relations.core.ontology import build_ontology
+
+    t = {
+        "id": "acusa", "version": 1, "status": "active", "replaced_by": [],
+        "label": "Acusa", "definition": "d", "when_to_use": "u", "when_not_to_use": "n",
+        "example": "e", "parent": "fam", "domain": ["pessoa", "grupo"], "range": ["pessoa"],
+        "symmetric": False, "inverse_of": {"id": "acusado_por", "label": "Acusado por"},
+        "irreflexive": True, "disjoint_with": [], "disjoint_note": None,
+    }
+    t.update(type_extra)
+    return build_ontology({
+        "version": 1,
+        "abstract_types": [{
+            "id": "fam", "label": "F", "definition": "d",
+            "domain": ["pessoa", "grupo"], "range": ["pessoa"], "status": "active",
+        }],
+        "types": [t],
+    })
+
+
+def _rt(onto):
+    return onto.relation_types()[0]
+
+
+def _args(onto, s=None, o=None):
+    return (
+        onto, _rt(onto),
+        s or _entity(EntityKind.pessoa, "A"), o or _entity(EntityKind.pessoa, "B"),
+    )
+
+
+def test_new_claim_builds_claim_with_key():
+    onto = _onto()
+    a, b = _entity(EntityKind.pessoa, "A"), _entity(EntityKind.pessoa, "B")
+    c = new_claim(
+        onto, _rt(onto), a, b, claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p"
+    )
+    assert c.claim_key == claim_key(a.id, _rt(onto), b.id)
+    assert (c.subject_id, c.type_id, c.object_id) == (a.id, "acusa", b.id)
+
+
+def test_new_claim_alegada_puts_asserted_by_in_key():
+    onto = _onto()
+    a, b = _entity(EntityKind.pessoa, "A"), _entity(EntityKind.pessoa, "B")
+    kw = dict(confidence=0.9, pass_id="p")
+    plain = new_claim(onto, _rt(onto), a, b, claim_class=ClaimClass.afirmada, **kw)
+    alleged = new_claim(
+        onto, _rt(onto), a, b, claim_class=ClaimClass.alegada, asserted_by=a.id,
+        narrative_scope=NarrativeScope.texto_encaixado, **kw,
+    )
+    assert alleged.claim_key != plain.claim_key
+    assert alleged.asserted_by == a.id
+
+
+def test_new_claim_rejects_abstract_type():
+    onto = _onto()
+    abstract = RelationType(
+        id="fam", label="F", definition="d", subject_kinds=[EntityKind.pessoa],
+        object_kinds=[EntityKind.pessoa], version=1,
+    )
+    with pytest.raises(AbstractType):
+        new_claim(
+            onto, abstract, _entity(EntityKind.pessoa), _entity(EntityKind.pessoa),
+            claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p",
+        )
+
+
+def test_new_claim_rejects_obsolete_type():
+    onto = _onto()
+    onto.file.types[0].status = Status.obsolete
+    with pytest.raises(ObsoleteType):
+        new_claim(
+            *_args(onto), claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p"
+        )
+
+
+def test_new_claim_rejects_reflexive_claim():
+    onto = _onto()
+    a = _entity(EntityKind.pessoa, "A")
+    with pytest.raises(ReflexiveClaim):
+        new_claim(
+            *_args(onto, a, a), claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p"
+        )
+
+
+def test_new_claim_accepts_reflexive_when_type_is_not_irreflexive():
+    onto = _onto(irreflexive=False)
+    a = _entity(EntityKind.pessoa, "A")
+    c = new_claim(*_args(onto, a, a), claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p")
+    assert c.subject_id == c.object_id
+
+
+def test_new_claim_rejects_incompatible_kind():
+    onto = _onto()
+    with pytest.raises(IncompatibleKinds):
+        new_claim(
+            *_args(onto, _entity(EntityKind.lugar)),
+            claim_class=ClaimClass.afirmada, confidence=0.9, pass_id="p",
+        )

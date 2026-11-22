@@ -1,0 +1,376 @@
+# Ontologia de relações — Mapa de Relações (B02a, ADR 011).
+#
+# Fonte única dos tipos de relação. Os artefatos em contracts/ontology/*.json e
+# contracts/schemas/ontology-file.json são gerados deste arquivo por
+# scripts/generate_ontology.py: não editar o JSON à mão.
+#
+# V1: somente pessoa -> pessoa. Instituições, coletivos e funções difusas
+# ("a justiça", "o banco", "os funcionários") não são entidades. Personagem
+# identificável pela função usa a função como nome.
+#
+# Convenções (valem para qualquer obra):
+# - Tipo assimétrico é anotado em uma única direção; inverse_of nomeia a visão
+#   inversa, usada só em consulta e nunca anotável. Ontology.canonicalize
+#   normaliza a visão inversa para o tipo canônico.
+# - Tipo simétrico grava uma claim por par; a chave da claim ordena sujeito e
+#   objeto (ADR 003).
+# - mappings só recebe equivalência exata; correspondência aproximada vai em
+#   mappings_note e nunca alimenta inferência automática.
+# - Um par de pessoas pode ter vários tipos ao mesmo tempo. A normalização de
+#   duplicatas opera por (par, tipo), nunca só por par.
+# - Ids são estáveis: nunca renomeados nem reaproveitados (relations.lock.json).
+#   Retirar um tipo = status: obsolete com replaced_by.
+
+version: 1
+
+abstract_types:
+  - id: relacao_familiar
+    label: "Relação familiar"
+    definition: "Vínculo de parentesco, afinidade ou união formalizada."
+    domain: [pessoa]
+    range: [pessoa]
+    status: active
+
+  - id: relacao_afetiva
+    label: "Relação afetiva"
+    definition: "Vínculo pessoal de afeto, desejo ou amizade, fora do parentesco."
+    domain: [pessoa]
+    range: [pessoa]
+    status: active
+
+  - id: relacao_de_poder
+    label: "Relação de poder"
+    definition: "Assimetria estável em que uma pessoa dispõe de autoridade, força ou vigilância sobre outra."
+    domain: [pessoa]
+    range: [pessoa]
+    status: active
+
+  - id: relacao_de_mediacao
+    label: "Relação de mediação"
+    definition: "Uma pessoa age, fala ou responde por outra perante terceiros."
+    domain: [pessoa]
+    range: [pessoa]
+    status: active
+
+  - id: relacao_de_conflito
+    label: "Relação de conflito"
+    definition: "Antagonismo declarado ou sustentado entre duas pessoas."
+    domain: [pessoa]
+    range: [pessoa]
+    status: active
+
+types:
+  - id: parente_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Parente de"
+    definition: "Parentesco consanguíneo ou por adoção, sem direção geracional relevante."
+    when_to_use: >
+      Tio e sobrinho, primos, irmãos, e qualquer parentesco que o texto afirme sem
+      que a direção importe para a análise.
+    when_not_to_use: >
+      Não usar para cônjuge (use conjuge_de) nem quando a direção pai/filho for
+      explícita e útil (use progenitor_de). Não usar para "parentes" como coletivo
+      ("teus parentes", "a família"): não é pessoa identificável.
+    example: "Mariana e Teodoro são primos de primeiro grau."
+    parent: relacao_familiar
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: true
+    irreflexive: true
+    disjoint_with: [conjuge_de, vinculo_amoroso_com]
+    disjoint_note: null
+    mappings_note: >
+      wikidata:P1038 (relative) exclui irmãos, que têm propriedade própria, e
+      schema.org:relatedTo é genérico demais. Correspondência aproximada, sem uso
+      automático.
+
+  - id: progenitor_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Progenitor de"
+    definition: "Pai ou mãe de outra pessoa."
+    when_to_use: >
+      Quando o texto marca a relação geracional direta, inclusive por referência
+      funcional ("o filho do porteiro", "meu pai era pintor").
+    when_not_to_use: >
+      Não usar para tutela, padrinho, chefia paternalista ou tratamento afetivo
+      ("filho" como vocativo). Não inverter: anota-se sempre do progenitor para o filho.
+    example: "Otávio é pai de Clara, que estuda piano."
+    parent: relacao_familiar
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: filho_de
+      label: "Filho de"
+    irreflexive: true
+    disjoint_with: [conjuge_de, vinculo_amoroso_com, interesse_amoroso_por]
+    disjoint_note: null
+    mappings:
+      wikidata: P40
+      schema_org: children
+
+  - id: conjuge_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Cônjuge de"
+    definition: "União conjugal formalizada entre duas pessoas."
+    when_to_use: >
+      Casamento afirmado no texto, inclusive quando um dos cônjuges só é
+      identificável pela função ("a mulher do porteiro", "meu marido").
+    when_not_to_use: >
+      Não usar para noivado, amantes, coabitação ou "casal" formado numa cena
+      isolada; esses casos vão para vinculo_amoroso_com. Não usar para viuvez
+      quando o cônjuge morto não é personagem identificável.
+    example: "Dalva é casada com Nestor há vinte anos."
+    parent: relacao_familiar
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: true
+    irreflexive: true
+    disjoint_with: [parente_de, progenitor_de]
+    disjoint_note: null
+    mappings:
+      wikidata: P26
+      schema_org: spouse
+
+  - id: vinculo_amoroso_com
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Vínculo amoroso com"
+    definition: "Relação amorosa, sexual ou de amantes reconhecida de ambos os lados."
+    when_to_use: >
+      Quando o texto mostra ou afirma reciprocidade, mesmo episódica: amante
+      regular, noivado, encontro correspondido.
+    when_not_to_use: >
+      Não usar quando o desejo é de um lado só, recusado ou apenas insinuado:
+      use interesse_amoroso_por. Não usar para beijo de cortesia, vocativo
+      afetuoso ou cena de assédio sem correspondência.
+    example: "Bruno e Alice se encontram às quintas, sem que ninguém saiba."
+    parent: relacao_afetiva
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: true
+    irreflexive: true
+    disjoint_with: [parente_de, progenitor_de]
+    disjoint_note: null
+    mappings_note: >
+      wikidata:P451 (unmarried partner) é aproximado: pressupõe casal estável,
+      o que não cobre amante ocasional nem noivado.
+
+  - id: interesse_amoroso_por
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Interesse amoroso por"
+    definition: "Desejo, cortejo ou perseguição amorosa dirigida a alguém, sem reciprocidade estabelecida."
+    when_to_use: >
+      Assédio e cortejo insistentes, pretendente declarado por terceiros, presente
+      de intenção amorosa. Anotar do interessado para o alvo.
+    when_not_to_use: >
+      Não usar quando o texto estabelece reciprocidade (vinculo_amoroso_com), nem
+      quando a cena é só elogio, galanteio social ou avaliação física do narrador.
+      Quando o interesse se dá por meio de força física, acrescentar
+      exerce_coercao_sobre em aresta separada em vez de alargar este tipo.
+    example: "Hélio manda flores semanais para Rute, que devolve todas."
+    parent: relacao_afetiva
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: alvo_de_interesse_de
+      label: "Alvo de interesse de"
+    irreflexive: true
+    disjoint_with: [progenitor_de]
+    disjoint_note: null
+
+  - id: amizade_com
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Amizade com"
+    definition: "Amizade pessoal afirmada, incluindo amizade antiga ou de ofício."
+    when_to_use: >
+      Quando alguém chama o outro de amigo, ou o texto registra convivência antiga
+      com confiança mútua (colegas de colégio, visitas de amizade).
+    when_not_to_use: >
+      Não usar para "amigo" usado como fórmula de cortesia comercial, nem para
+      conhecido, contato útil ou aliado momentâneo. Amizade alegada por um
+      personagem para se valorizar diante de terceiros entra como classe alegada,
+      com asserted_by preenchido.
+    example: "Inês e Vicente estudaram juntos e se visitam desde então."
+    parent: relacao_afetiva
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: true
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+    mappings_note: >
+      foaf:knows é mais amplo (qualquer conhecido) e não equivale a amizade;
+      serve como broader match em exportação, não como equivalência. Não há
+      propriedade estável de "amigo" em Wikidata nem em schema.org.
+
+  - id: superior_hierarquico_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Superior hierárquico de"
+    definition: "Autoridade formal de uma pessoa sobre outra dentro da mesma organização."
+    when_to_use: >
+      Chefia, subordinação de cargo, direito de dar ordens e de avaliar o trabalho
+      do outro, inclusive quando as pessoas são nomeadas apenas pelo posto.
+    when_not_to_use: >
+      Não usar para superioridade social, moral ou de prestígio, nem para relação
+      entre pessoa e instituição. Não usar entre funcionários de órgãos distintos.
+      Nunca anotar as duas direções para o mesmo par.
+    example: "Selma chefia a equipe em que Caio trabalha."
+    parent: relacao_de_poder
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: subordinado_a
+      label: "Subordinado a"
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+    mappings_note: >
+      org:reportsTo (W3C Organization Ontology) é o equivalente mais próximo, mas
+      está fora dos três vocabulários aceitos. schema.org só liga pessoa a
+      organização (worksFor), não pessoa a pessoa.
+
+  - id: exerce_coercao_sobre
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Exerce coerção sobre"
+    definition: "Uso de força, custódia, castigo ou confinamento de uma pessoa sobre outra."
+    when_to_use: >
+      Detenção, guarda com restrição de movimento, castigo físico, carregar ou
+      arrastar alguém contra a vontade, trancar alguém num quarto, execução.
+    when_not_to_use: >
+      Não usar para ameaça apenas verbal, pressão moral, chantagem ou autoridade
+      de cargo (superior_hierarquico_de). Não usar para coerção sonhada, desejada
+      ou hipotética. Não usar quando o agente é a instituição e nenhum executor
+      é identificável.
+    example: "Os dois enfermeiros seguram Ovídio até o médico chegar."
+    parent: relacao_de_poder
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: coagido_por
+      label: "Coagido por"
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+
+  - id: exerce_vigilancia_sobre
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Exerce vigilância sobre"
+    definition: "Observação ou escuta deliberada e repetida de uma pessoa por outra."
+    when_to_use: >
+      Vigilância de ofício, espionagem doméstica, escuta à porta, observação pela
+      janela que se repete ou é notada pelo observado.
+    when_not_to_use: >
+      Não usar para um olhar isolado, para o público de uma cena, nem para "espiar"
+      metafórico. Não usar quando o vigilante é um grupo difuso (os espectadores,
+      a assembleia). Quando a vigilância vem junto de restrição física, anotar também
+      exerce_coercao_sobre, em aresta separada.
+    example: "Dona Zilda acompanha pela cortina cada entrada de Firmino."
+    parent: relacao_de_poder
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: vigiado_por
+      label: "Vigiado por"
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+
+  - id: representa_juridicamente
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Representa juridicamente"
+    definition: "Uma pessoa atua como defensor ou procurador de outra num processo ou negócio jurídico."
+    when_to_use: >
+      Advogado e cliente, inclusive representação múltipla (vários defensores de
+      um mesmo cliente) e representação revogada, com o fim marcado por capítulo e offset.
+    when_not_to_use: >
+      Não usar para conselho avulso, nem para quem apenas conhece o processo ou
+      promete influência sem assumir a defesa. Não usar quando "procurador" é
+      título profissional de cargo, sem representar uma pessoa específica.
+    example: "A advogada Noêmia defende Péricles na ação de cobrança."
+    parent: relacao_de_mediacao
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: representado_por
+      label: "Representado por"
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+    mappings_note: >
+      wikidata:P1875 (represented by) é genérico (agente, empresário) e de direção
+      inversa; não serve como equivalência.
+
+  - id: age_em_nome_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Age em nome de"
+    definition: "Uma pessoa fala, leva recado ou intercede por outra perante terceiros, sem representação jurídica."
+    when_to_use: >
+      Porta-voz, emissário, intérprete, quem entrega presente ou mensagem de alguém,
+      quem avaliza ou apresenta outro a terceiros.
+    when_not_to_use: >
+      Não usar quando há defesa jurídica (use representa_juridicamente). Não usar
+      para quem apenas comenta o caso de outro, nem para serviço doméstico sem fala
+      delegada.
+    example: "Cássia leva a recusa de Ilda ao síndico, porque Ilda não quer falar."
+    parent: relacao_de_mediacao
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: false
+    inverse_of:
+      id: representado_informalmente_por
+      label: "Representado informalmente por"
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: null
+
+  - id: adversario_de
+    version: 1
+    status: active
+    replaced_by: []
+    label: "Adversário de"
+    definition: "Antagonismo declarado ou disputa sustentada entre duas pessoas."
+    when_to_use: >
+      Rivalidade por posição, hostilidade recíproca mantida em mais de uma cena,
+      ofensa mútua, disputa por uma terceira pessoa.
+    when_not_to_use: >
+      Não usar para uma única troca ríspida, para irritação interna não manifesta,
+      nem para a oposição entre uma pessoa e a instituição. Não usar quando a
+      hostilidade é só de um lado e não produz resposta.
+    example: "Ariel e Davi disputam a mesma vaga e trocam acusações em público."
+    parent: relacao_de_conflito
+    domain: [pessoa]
+    range: [pessoa]
+    symmetric: true
+    irreflexive: true
+    disjoint_with: []
+    disjoint_note: >
+      amizade_com não é declarada disjunta deste tipo de propósito: há pares que
+      passam de uma coisa à outra, e disjunção sem janela temporal geraria
+      contradição no grafo (D5 do ADR 011).

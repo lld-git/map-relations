@@ -1,0 +1,158 @@
+[
+  {
+    "id": "parente_de",
+    "label": "Parente de",
+    "definition": "Parentesco consanguíneo ou por adoção, sem direção geracional relevante.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": true
+  },
+  {
+    "id": "progenitor_de",
+    "label": "Progenitor de",
+    "definition": "Pai ou mãe de outra pessoa.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "conjuge_de",
+    "label": "Cônjuge de",
+    "definition": "União conjugal formalizada entre duas pessoas.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": true
+  },
+  {
+    "id": "vinculo_amoroso_com",
+    "label": "Vínculo amoroso com",
+    "definition": "Relação amorosa, sexual ou de amantes reconhecida de ambos os lados.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": true
+  },
+  {
+    "id": "interesse_amoroso_por",
+    "label": "Interesse amoroso por",
+    "definition": "Desejo, cortejo ou perseguição amorosa dirigida a alguém, sem reciprocidade estabelecida.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "amizade_com",
+    "label": "Amizade com",
+    "definition": "Amizade pessoal afirmada, incluindo amizade antiga ou de ofício.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": true
+  },
+  {
+    "id": "superior_hierarquico_de",
+    "label": "Superior hierárquico de",
+    "definition": "Autoridade formal de uma pessoa sobre outra dentro da mesma organização.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "exerce_coercao_sobre",
+    "label": "Exerce coerção sobre",
+    "definition": "Uso de força, custódia, castigo ou confinamento de uma pessoa sobre outra.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "exerce_vigilancia_sobre",
+    "label": "Exerce vigilância sobre",
+    "definition": "Observação ou escuta deliberada e repetida de uma pessoa por outra.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "representa_juridicamente",
+    "label": "Representa juridicamente",
+    "definition": "Uma pessoa atua como defensor ou procurador de outra num processo ou negócio jurídico.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "age_em_nome_de",
+    "label": "Age em nome de",
+    "definition": "Uma pessoa fala, leva recado ou intercede por outra perante terceiros, sem representação jurídica.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": false
+  },
+  {
+    "id": "adversario_de",
+    "label": "Adversário de",
+    "definition": "Antagonismo declarado ou disputa sustentada entre duas pessoas.",
+    "subjectKinds": [
+      "pessoa"
+    ],
+    "objectKinds": [
+      "pessoa"
+    ],
+    "version": 1,
+    "symmetric": true
+  }
+]

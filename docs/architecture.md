@@ -1,6 +1,6 @@
 # Arquitetura
 
-Atualizado em 2026-11-19 (B04d, Opção B). Este documento descreve o que
+Atualizado em 2026-11-21 (B02a, ontologia). Este documento descreve o que
 existe no código; o planejado aparece tracejado nos diagramas e marcado como
 planejado. O único diagrama de fluxo do projeto está em
 [docs/mapa/fluxo.md](mapa/fluxo.md).
@@ -16,7 +16,8 @@ planejado. O único diagrama de fluxo do projeto está em
 | Parser único | `research/map_relations/ingest/markdown.py` | documento.md → IngestResult | Interpreta só a convenção; o resto é literal |
 | Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
 | CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
-| Scripts | `scripts/` | Geração/verificação de schemas | Rodam só em Docker |
+| Ontologia | `contracts/ontology/`, `core/ontology*.py`, `ontology_io.py` | `relations.yaml` (fonte) → `Ontology`, trava de ids e artefatos gerados | Modelos puros em `core`; leitura de YAML só em `ontology_io` (ADR 011) |
+| Scripts | `scripts/` | Geração/verificação de schemas e da ontologia | Rodam só em Docker |
 | Testes | `tests/` | pytest, tudo em Docker | Não importam fornecedores diretamente |
 
 Pastas previstas na estrutura e ainda vazias (planejado): `engines/`, `tasks/`,
@@ -45,6 +46,11 @@ Regras centrais:
 - Identidade por UUID + chaves de conteúdo para upsert
   ([ADR 003](adr/003-ids-estaveis.md)).
 - `validate_claim_kinds` rejeita claims com kind incompatível com o relationType.
+- `rules.new_claim` é o único caminho de criação de claim: rejeita tipo abstrato,
+  obsoleto e relação de alguém consigo mesmo; disjunção é só alerta
+  ([ADR 011](adr/011-ontologia-de-relacoes.md)).
+- `claim_key(s, RelationType, o, *, asserted_by, narrative_scope)`: simetria lida do
+  tipo; classe fora da chave. Classe `alegada` exige `asserted_by`.
 - Toda transição gera ChangeLog com actor e run_id/pass_id (`core/rules.py`).
 
 ### IngestResult (`core/ingest_contract.py`)
@@ -83,7 +89,11 @@ flowchart BT
         states["core.states"]
         rules["core.rules"]
         protocols["core.protocols"]
+        ontology["core.ontology"]
+        lock["core.ontology_lock"]
     end
+    ontoio["ontology_io"]
+    genonto["scripts.generate_ontology"]
     subgraph ingest
         document["ingest.document"]
         md["ingest.markdown<br/>(parser único)"]
@@ -107,6 +117,15 @@ flowchart BT
     states --> models
     rules --> models
     rules --> states
+    rules --> ontology
+    rules --> ids
+    ids -.-> models
+    ontology --> models
+    lock --> ontology
+    ontoio --> ontology
+    genonto --> ontoio
+    genonto --> lock
+    cli --> ontoio
     protocols --> contract
     document --> ids
     document --> models
@@ -166,3 +185,4 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [008](adr/008-markdown-intermediario.md) | Markdown intermediário único; cache Docling; documento.md revisável |
 | [009](adr/009-camada-comum-layout.md) | Opção B do B04d: camada comum de layout (`LayoutItem`) entre conversores |
 | [010](adr/010-reconhecimento-mineru.md) | Reconhecimento do MinerU Basic: campos reais, licença, custo — sem adaptador |
+| [011](adr/011-ontologia-de-relacoes.md) | Ontologia de relações versionada; `claim_key` pelo RelationType; classe `alegada`; `narrative_scope` |

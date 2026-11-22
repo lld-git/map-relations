@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-21 (B04f falas)
+# Status — atualizado em 2026-11-21 (B02a concluído)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -6,6 +6,13 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 
 ## Concluído
 
+- **B02a** — ontologia de relações, branch `b02a-ontologia` (sem push).
+  YAML versionado com trava de ids, `Ontology`, artefatos gerados, `claim_key`
+  lendo a simetria do `RelationType` (com `asserted_by` e `narrative_scope` na
+  chave, classe fora), `rules.new_claim` (rejeita abstrato, obsoleto e
+  reflexivo; disjunção é alerta), classe `alegada`, `narrative_scope`.
+  `vigia` renomeado para `exerce_vigilancia_sobre` antes de publicar a trava.
+  270 testes. ADR 011. Relatório: [docs/blocks/B02a.md](blocks/B02a.md).
 - **B01b** — relações simétricas: `RelationType.symmetric`, `claim_key` ordena
   sujeito/objeto quando simétrico; ADR 003 e schema atualizados; 3 novos testes.
   Relatório: [docs/blocks/B01b.md](blocks/B01b.md).
@@ -186,7 +193,7 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - Criar repositório remoto no GitHub (map-relations) — aguardando a conta do Leon.
 - Resto do B04: leitura de TXT e EPUB; migrar url_loader ao contrato
   IngestResult (hoje é o único candidato real em codigo_morto.txt).
-- B02: gabarito eval/gold/processo.json e comando eval.
+- B02: gabarito em `data/golden/processo.json` (fora do Git) e comando eval.
 - Limitação conhecida do pdf_loader: parágrafo que atravessa página sem hífen
   vira dois parágrafos; resolve-se com Docling no B04b.
 
@@ -202,8 +209,37 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 008 — Markdown estruturado como formato intermediário único.
 - ADR 009 — B04d: camada comum de layout entre conversores (Opção B).
 - ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
+- ADR 011 — Ontologia de relações versionada; `claim_key` pelo RelationType; `alegada`.
 
 ## Handoff
+
+**B02a concluído** (branch `b02a-ontologia`, sem push; relatório em
+[docs/blocks/B02a.md](blocks/B02a.md)). Além da parte da ontologia (YAML, `Ontology`,
+trava, geração), o bloco agora tem `claim_key(s, RelationType, o, *, asserted_by,
+narrative_scope)`, `rules.new_claim`, `ClaimClass.alegada`, `Claim.asserted_by` e
+`Claim.narrative_scope`, `make schema`, CLAUDE.md (modelo e seção B02) e ADR 011.
+`vigia` virou `exerce_vigilancia_sobre` (trava regenerada do zero, ainda não
+publicada). 270 testes; `make check` e os dois jobs do CI verdes.
+
+**Próximo passo: B02** — gabarito em `data/golden/processo.json` (fora do Git;
+converter `"version": "1.0.0"` e `asserted_by` por nome para os ids da ontologia e
+das entidades), reescrever `build_gold.py` no pacote, validar o gabarito contra
+a ontologia e criar `eval --run <arquivo> --gold <arquivo>`. A V1 avalia só
+`narrative_scope = obra`; `texto_encaixado` é excluído dos dois lados e contado
+à parte.
+
+**Pontos abertos:** (a) a trava protege só a parte semântica dos abstratos (não têm
+`version`); a visão inversa herda o `version` do dono. (b) Erros estruturais do YAML
+param antes das regras semânticas; os demais saem juntos. (c) `age_em_nome_de` ×
+`representa_juridicamente` segue para a avaliação por família no B02. (d) `uv lock`
+exige montar o diretório (`docker run -v "$PWD":/work -w /work maprelations-app uv
+lock`). (e) Regra do verificador para `alegada`: B05.
+
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/blocks/B02a.md; `make check` verde.
+
+---
+
+### Handoff anterior (B04f/B04e/B04d)
 
 **B04f está fechado** (branch `b04f-falas`, a partir do master com o B04e já
 mesclado; sem push desta sessão). Marcador de lista do Docling preservado no

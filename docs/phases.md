@@ -2,7 +2,7 @@
 
 Uma seção por fase e checkpoint: objetivo, métricas, observações e
 aprendizados. Só métricas que existem de verdade; sem números inventados.
-Atualizado em 2026-11-11.
+Atualizado em 2026-11-21.
 
 ## B00 — Fundação (concluído em 2026-11-05)
 
@@ -151,6 +151,22 @@ Makefile exige nota de sincronia dos dois lados.
 - **Aprendizado:** a classificação de títulos tem de ser global (depois da
   junção), senão um capítulo explícito numa faixa posterior não rebaixa
   maiúsculas de uma faixa anterior.
+
+## B02a — Ontologia de relações (concluído em 2026-11-21)
+
+**Objetivo:** tipos de relação estáveis (YAML versionado, trava de ids), `claim_key`
+única lida do `RelationType`, `new_claim` como único caminho de criação, classe
+`alegada` com `asserted_by` e `narrative_scope`, antes do gabarito do B02.
+
+**Métricas:** 270 testes na conclusão (50 novos no bloco); 12 tipos anotáveis e
+5 abstratos; 4 artefatos gerados conferidos em `make schema-check` e no CI.
+
+**Observações:** `vigia` renomeado para `exerce_vigilancia_sobre` antes de publicar
+a trava; disjunção é alerta e irreflexividade é rejeição (D5); gabarito da obra
+protegida fica em `data/golden/`, fora do Git.
+
+**Aprendizados:** `ids` precisa importar `RelationType` só para tipagem
+(`TYPE_CHECKING`), porque `models` já importa `ids`.
 
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 

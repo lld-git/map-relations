@@ -1,0 +1,172 @@
+{
+  "ids": {
+    "adversario_de": {
+      "content": "e09b70cb39a85589",
+      "kind": "type",
+      "semantic": "e6a105967b737c30",
+      "status": "active",
+      "version": 1
+    },
+    "age_em_nome_de": {
+      "content": "8f10ecde80883877",
+      "kind": "type",
+      "semantic": "cc787ec4f5f8bd78",
+      "status": "active",
+      "version": 1
+    },
+    "alvo_de_interesse_de": {
+      "content": "3bed4ee943c3f2a2",
+      "kind": "inverse",
+      "semantic": "9534433859f285a0",
+      "status": "active",
+      "version": 1
+    },
+    "amizade_com": {
+      "content": "9874c3360c8cd44f",
+      "kind": "type",
+      "semantic": "50015ba86d7c6d5b",
+      "status": "active",
+      "version": 1
+    },
+    "coagido_por": {
+      "content": "8bd771b935fe65ba",
+      "kind": "inverse",
+      "semantic": "2f980b0fc8d13f9a",
+      "status": "active",
+      "version": 1
+    },
+    "conjuge_de": {
+      "content": "d96c1640ab4dd7f8",
+      "kind": "type",
+      "semantic": "bc60f676df5312ee",
+      "status": "active",
+      "version": 1
+    },
+    "exerce_coercao_sobre": {
+      "content": "dc5fc13f5ee3368b",
+      "kind": "type",
+      "semantic": "0ba08e59b8a627ae",
+      "status": "active",
+      "version": 1
+    },
+    "exerce_vigilancia_sobre": {
+      "content": "0872447a40074ff3",
+      "kind": "type",
+      "semantic": "2e94ec7f617b134b",
+      "status": "active",
+      "version": 1
+    },
+    "filho_de": {
+      "content": "75e2e22a1ce1ce92",
+      "kind": "inverse",
+      "semantic": "48da66b293a5e4b4",
+      "status": "active",
+      "version": 1
+    },
+    "interesse_amoroso_por": {
+      "content": "0bd430d40f9c361a",
+      "kind": "type",
+      "semantic": "429bc49413ab4c14",
+      "status": "active",
+      "version": 1
+    },
+    "parente_de": {
+      "content": "c1d9c2bcefd7d4c0",
+      "kind": "type",
+      "semantic": "f0597f5be96de0ed",
+      "status": "active",
+      "version": 1
+    },
+    "progenitor_de": {
+      "content": "1424adf1731d60d0",
+      "kind": "type",
+      "semantic": "ba8f5e39749c265a",
+      "status": "active",
+      "version": 1
+    },
+    "relacao_afetiva": {
+      "content": "7279b117ef84168d",
+      "kind": "abstract",
+      "semantic": "50c57a83909e0854",
+      "status": "active",
+      "version": null
+    },
+    "relacao_de_conflito": {
+      "content": "845ad2356edb97ee",
+      "kind": "abstract",
+      "semantic": "845a0a834b0fcdb6",
+      "status": "active",
+      "version": null
+    },
+    "relacao_de_mediacao": {
+      "content": "7ff612b254fdba00",
+      "kind": "abstract",
+      "semantic": "2162eacf3b8398ac",
+      "status": "active",
+      "version": null
+    },
+    "relacao_de_poder": {
+      "content": "b716b50f52253109",
+      "kind": "abstract",
+      "semantic": "365c14702b0e7da0",
+      "status": "active",
+      "version": null
+    },
+    "relacao_familiar": {
+      "content": "9d859f36c6ad4656",
+      "kind": "abstract",
+      "semantic": "86813d4a6de670f7",
+      "status": "active",
+      "version": null
+    },
+    "representa_juridicamente": {
+      "content": "e1afe64820b9e916",
+      "kind": "type",
+      "semantic": "e8c62582541d6fa7",
+      "status": "active",
+      "version": 1
+    },
+    "representado_informalmente_por": {
+      "content": "596d85505f384eef",
+      "kind": "inverse",
+      "semantic": "b52deea700fe7b66",
+      "status": "active",
+      "version": 1
+    },
+    "representado_por": {
+      "content": "ea74595df2a45dfa",
+      "kind": "inverse",
+      "semantic": "b01be7a83b1360f6",
+      "status": "active",
+      "version": 1
+    },
+    "subordinado_a": {
+      "content": "ff2c5bd3be1f282f",
+      "kind": "inverse",
+      "semantic": "223061e629d3e2f4",
+      "status": "active",
+      "version": 1
+    },
+    "superior_hierarquico_de": {
+      "content": "4d1ba05e26cb26d4",
+      "kind": "type",
+      "semantic": "dfc2fe1ca2f7ac05",
+      "status": "active",
+      "version": 1
+    },
+    "vigiado_por": {
+      "content": "ab0bfe41b5e25341",
+      "kind": "inverse",
+      "semantic": "601d82eee5c1e5c8",
+      "status": "active",
+      "version": 1
+    },
+    "vinculo_amoroso_com": {
+      "content": "a39384c3afe8677d",
+      "kind": "type",
+      "semantic": "7ec5247eb5e844cd",
+      "status": "active",
+      "version": 1
+    }
+  }
+}

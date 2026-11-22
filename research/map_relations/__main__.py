@@ -4,6 +4,7 @@
     python -m map_relations prepare <arquivo>   # imprime o dir de cache Docling
     python -m map_relations compare <pdf> [--converter docling|pdf_loader]
     python -m map_relations clean [--apply]     # pastas órfãs em processed/
+    python -m map_relations ontology check [arquivo]  # valida a ontologia de relações
 
 O arquivo deve estar em data/raw/. Saída em data/processed/<hash_do_arquivo>/.
 documento.md é a fonte revisada pelo humano: nunca é sobrescrito sem --force-md.
@@ -33,6 +34,8 @@ from map_relations.ingest.markdown import md_hash, parse_markdown, render_markdo
 from map_relations.ingest.pdf_loader import extract_pages, page_count, page_ranges
 from map_relations.ingest.report import render_report
 from map_relations.ingest.store import ProcessedStore, file_hash
+from map_relations.ontology_io import DEFAULT_PATH as ONTOLOGY_PATH
+from map_relations.ontology_io import load_ontology
 
 ROOT = Path.cwd()
 RAW_DIR = ROOT / "data" / "raw"
@@ -294,6 +297,22 @@ def cmd_clean(apply: bool) -> int:
     return 0
 
 
+def cmd_ontology_check(path: Path) -> int:
+    from map_relations.core.ontology import OntologyError
+
+    try:
+        onto = load_ontology(path)
+    except OntologyError as exc:
+        print(f"ontologia inválida ({len(exc.errors)} erro(s)):", file=sys.stderr)
+        print(exc, file=sys.stderr)
+        return 1
+    print(
+        f"ontologia ok: versão {onto.version}, "
+        f"{onto.n_annotatable} anotáveis, {onto.n_abstract} abstratos"
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="map_relations",
@@ -342,6 +361,11 @@ def main(argv: list[str] | None = None) -> int:
     p_clean = sub.add_parser("clean", help="lista/remove pastas órfãs de processed/")
     p_clean.add_argument("--apply", action="store_true", help="remove de verdade")
 
+    p_onto = sub.add_parser("ontology", help="ferramentas da ontologia de relações")
+    onto_sub = p_onto.add_subparsers(dest="onto_command", required=True)
+    p_check = onto_sub.add_parser("check", help="valida relations.yaml (exit 1 com a lista)")
+    p_check.add_argument("arquivo", nargs="?", type=Path, default=ONTOLOGY_PATH)
+
     args = parser.parse_args(argv)
     if args.command == "ingest":
         return cmd_ingest(args.arquivo, args.route, args.force_md)
@@ -353,6 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_compare(args.arquivo, args.converter)
     if args.command == "clean":
         return cmd_clean(args.apply)
+    if args.command == "ontology":
+        return cmd_ontology_check(args.arquivo)
     parser.error(f"comando desconhecido: {args.command}")
 
 
