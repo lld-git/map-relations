@@ -5,6 +5,7 @@
     python -m map_relations compare <pdf> [--converter docling|pdf_loader]
     python -m map_relations clean [--apply]     # pastas órfãs em processed/
     python -m map_relations ontology check [arquivo]  # valida a ontologia de relações
+    python -m map_relations gold fill-offsets|convert-draft|validate  # gabarito (B02)
 
 O arquivo deve estar em data/raw/. Saída em data/processed/<hash_do_arquivo>/.
 documento.md é a fonte revisada pelo humano: nunca é sobrescrito sem --force-md.
@@ -22,6 +23,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from map_relations.core.ingest_contract import IngestResult, RemovedItem
+from map_relations.evaluation import gold_cli
 from map_relations.ingest.alerts import ConversionAlert, classify_conversion_alerts
 from map_relations.ingest.canonical import build_ingest_result, pdf_pages_to_blocks
 from map_relations.ingest.canonical import layout_items as pdf_loader_layout_items
@@ -366,6 +368,27 @@ def main(argv: list[str] | None = None) -> int:
     p_check = onto_sub.add_parser("check", help="valida relations.yaml (exit 1 com a lista)")
     p_check.add_argument("arquivo", nargs="?", type=Path, default=ONTOLOGY_PATH)
 
+    p_gold = sub.add_parser("gold", help="ferramentas do gabarito (B02)")
+    gold_sub = p_gold.add_subparsers(dest="gold_command", required=True)
+    canon_help = "canonical.txt (padrão: o único em data/processed/)"
+    p_fill = gold_sub.add_parser(
+        "fill-offsets", help="refaz as âncoras sobre o canônico atual (tudo ou nada)"
+    )
+    p_fill.add_argument("--gold", type=Path, required=True)
+    p_fill.add_argument("--canonical", type=Path, help=canon_help)
+    p_fill.add_argument("--out", type=Path, required=True, help="diferente de --gold")
+    p_fill.add_argument("--report", type=Path, help="relatório JSON (sem texto da obra)")
+    p_conv = gold_sub.add_parser(
+        "convert-draft", help="converte o rascunho legado em gabarito (uso único)"
+    )
+    p_conv.add_argument("--draft", type=Path, required=True)
+    p_conv.add_argument("--canonical", type=Path, help=canon_help)
+    p_conv.add_argument("--out", type=Path, required=True, help="diferente de --draft")
+    p_conv.add_argument("--report", type=Path, help="relatório JSON (sem texto da obra)")
+    p_val = gold_sub.add_parser("validate", help="valida o gabarito contra ontologia e canônico")
+    p_val.add_argument("--gold", type=Path, required=True)
+    p_val.add_argument("--canonical", type=Path, help=canon_help)
+
     args = parser.parse_args(argv)
     if args.command == "ingest":
         return cmd_ingest(args.arquivo, args.route, args.force_md)
@@ -379,6 +402,16 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_clean(args.apply)
     if args.command == "ontology":
         return cmd_ontology_check(args.arquivo)
+    if args.command == "gold":
+        if args.gold_command == "fill-offsets":
+            return gold_cli.cmd_fill_offsets(
+                args.gold, args.canonical, args.out, args.report, PROCESSED_DIR
+            )
+        if args.gold_command == "convert-draft":
+            return gold_cli.cmd_convert_draft(
+                args.draft, args.canonical, args.out, args.report, PROCESSED_DIR
+            )
+        return gold_cli.cmd_validate(args.gold, args.canonical, PROCESSED_DIR)
     parser.error(f"comando desconhecido: {args.command}")
 
 

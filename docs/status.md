@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-21 (B02a concluído)
+# Status — atualizado em 2026-11-22 (B02, fases 0 a 3)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -230,7 +230,7 @@ para esse capítulo, ainda sem responsável definido.
 
 **B02 em andamento** na branch `b02-gabarito` (a partir do master `2fbe888`, sem
 push; o plano previa `b02-avaliacao`, o nome foi trocado por decisão do Leon).
-Feitas as fases 0 e 1 do plano (§2 a §4), um commit por fase:
+Feitas as fases 0 a 3 do plano (§2 a §6); as fases 2 e 3 num só commit:
 - **Fase 0 — `make ci`:** `ci-test` e `ci-prod` espelham os dois jobs do
   `ci.yml` (sem volumes, `appuser`); `tests/test_ci_sync.py` falha se os `docker
   run` ou o `target` divergirem. Desvio do plano: o contexto do build é
@@ -243,16 +243,29 @@ Feitas as fases 0 e 1 do plano (§2 a §4), um commit por fase:
   `relation_id`), `contracts/schemas/gold.schema.json` gerado e conferido no
   `generate_schemas --check` (CI), ADR 012, 51 testes novos (um por regra do §3).
 
-**Próximo passo exato: fase 2 do plano (§5), `gold fill-offsets`.** Criar
-`evaluation/anchoring.py` com a busca de ocorrências de `exact` no canônico, o
-contexto de 32 code points que cresce até 128 sem cortar palavra e os erros
-`ambigua`/`nao_encontrada` (sem usar offset antigo, ordinal nem casamento
-aproximado); um modelo de entrada para o modo âncora mínima (só `exact`); o
-subcomando `python -m map_relations gold fill-offsets --gold --canonical --out`
-(tudo ou nada, `--out` ≠ `--gold`, relatório JSON e tabela) e `make gold-fill`.
-Pendente da fase 1: o subcomando `gold validate` (a função existe) depende de
-carregar um `IngestResult` de `data/processed/<hash>/`; fazer junto com o fill-offsets,
-que precisa do mesmo carregamento para o `locate()`. Testes da fase 2 listados no §11.
+- **Fase 2 — fill-offsets (§5):** `evaluation/anchoring.py` (`resolve_anchor`:
+  1 ocorrência aceita; várias filtram só por `prefix`/`suffix` gravados; offset
+  antigo, ordinal e casamento aproximado nunca decidem; contexto de 32 que cresce
+  até 128 sem cortar palavra), `evaluation/fill_offsets.py` (tudo ou nada, modo âncora
+  mínima, relatório sem texto da obra), subcomandos `gold fill-offsets` e
+  `gold validate` (pendência da fase 1 resolvida), `make gold-fill`/`gold-validate`.
+- **Fase 3 — conversão (§6):** `evaluation/convert_draft.py`, `gold convert-draft`,
+  `make gold-convert`. O relatório da citação ambígua mostra só `cap. X, § Y` e até
+  5 palavras de cada lado, nunca a citação. Desvio do plano: o rascunho aceita as
+  chaves opcionais `prefix`/`suffix` por relação, que é o canal da decisão D4.
+  42 testes novos (370 no total).
+  **Rodada real sobre o canônico atual (hash `7a25…`): 38 relações convertidas, 1 com
+  erro (ambígua, a relação #3 do rascunho, 2 ocorrências no cap. 1, § 24 e § 51).
+  `processo.gold.json` NÃO foi gerado (tudo ou nada).** O rascunho tem 39 relações
+  (o plano dizia 40). Relatório JSON em `data/golden/processo.convert-report.json`.
+
+**Próximo passo exato:** decisão D4 do Leon sobre a relação #3: ver as duas
+candidatas (`make gold-convert DRAFT=data/golden/processo.json
+OUT=data/golden/processo.gold.json`), acrescentar `"prefix"` (texto idêntico, colado
+antes da citação) a essa relação no rascunho e rodar de novo. Depois, conferir:
+(a) `narrative_scope = obra` atribuído a todas; (b) a regra do cabeçalho/rodapé do
+digitalizador em `annotation_rules`; (c) `make gold-validate GOLD=data/golden/processo.gold.json`.
+Em seguida, fase 4 (§7): `RunFile`, alinhamento, casamento, métricas e `eval`.
 
 **Pontos abertos:** (a) a trava protege só a parte semântica dos abstratos (não têm
 `version`); a visão inversa herda o `version` do dono. (b) Erros estruturais do YAML
@@ -262,7 +275,7 @@ exige montar o diretório (`docker run -v "$PWD":/work -w /work maprelations-app
 lock`). (e) Regra do verificador para `alegada`: B05.
 
 **Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§5 e §11); `make check` verde.
-Sem commit pendente; `docs/arquitetura_sugest.md` continua não versionado (não é deste bloco).
+`docs/arquitetura_sugest.md` continua não versionado (não é deste bloco).
 
 ---
 

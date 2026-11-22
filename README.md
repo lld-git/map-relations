@@ -100,6 +100,9 @@ All targets run inside the container via `docker compose`.
 | `make check` | lint + typecheck + schema-check + test |
 | `make ci` | reproduces both jobs of `.github/workflows/ci.yml` locally (images built from the Git index, so `git add` first; no volumes, non-root); `tests/test_ci_sync.py` fails if it drifts from `ci.yml` |
 | `make ingest PDF=<file>` | document from `data/raw/` → `data/processed/<hash>/` (runs Docling if cache is missing) |
+| `make gold-fill GOLD=<file> OUT=<new file>` | `gold fill-offsets`: rebuilds every evidence anchor against the current canonical text (all or nothing; `OUT` ≠ `GOLD`; optional `REPORT=<json>`) |
+| `make gold-convert DRAFT=<file> OUT=<new file>` | `gold convert-draft`: one-off conversion of the legacy draft into a gold file (all or nothing; the draft is never touched) |
+| `make gold-validate GOLD=<file>` | `gold validate`: checks a gold file against the ontology and the current canonical text |
 | `make map` | generates `docs/mapa/imports.svg` (pydeps) and `docs/mapa/codigo_morto.txt` (vulture) |
 | `make shell` | bash shell inside the container |
 | `make docling PDF=<file>` | fills the Docling cache in page ranges (`RANGE=40`; skips completed ranges) |

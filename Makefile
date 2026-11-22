@@ -10,7 +10,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: test lint typecheck schema schema-check check ci ci-test ci-prod ingest map shell docling compare compare-all clean-processed
+.PHONY: test lint typecheck schema schema-check check ci ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -60,6 +60,28 @@ ci-prod:
 	$(CI_CONTEXT) | docker build --target prod -t $(CI_PROD) -
 	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
 	docker run --rm $(CI_PROD) python -m map_relations ingest --help
+
+# Gabarito (B02 §5 e §6). Sem caminho padrão para data/golden/: sempre explícito.
+# make gold-fill GOLD=data/golden/a.json OUT=data/golden/b.json
+# make gold-convert DRAFT=data/golden/processo.json OUT=data/golden/processo.gold.json
+# make gold-validate GOLD=data/golden/processo.gold.json
+gold-fill:
+ifndef GOLD
+	$(error uso: make gold-fill GOLD=<arquivo> OUT=<arquivo novo>)
+endif
+	$(RUN) python -m map_relations gold fill-offsets --gold $(GOLD) --out $(OUT) $(if $(REPORT),--report $(REPORT))
+
+gold-convert:
+ifndef DRAFT
+	$(error uso: make gold-convert DRAFT=<rascunho> OUT=<arquivo novo>)
+endif
+	$(RUN) python -m map_relations gold convert-draft --draft $(DRAFT) --out $(OUT) $(if $(REPORT),--report $(REPORT))
+
+gold-validate:
+ifndef GOLD
+	$(error uso: make gold-validate GOLD=<arquivo>)
+endif
+	$(RUN) python -m map_relations gold validate --gold $(GOLD)
 
 # Uso: make ingest PDF=livro.pdf  (o arquivo deve estar em data/raw/).
 # Para PDF a rota padrão é o Docling; sem cache (exit 3), roda o serviço e repete.
