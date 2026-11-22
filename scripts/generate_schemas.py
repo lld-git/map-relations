@@ -12,6 +12,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from map_relations.core import models
+from map_relations.evaluation.gold import GoldFile
 
 ROOT = Path(__file__).parent.parent
 SCHEMAS_DIR = ROOT / "contracts" / "schemas"
@@ -34,6 +35,11 @@ DOMAIN_MODELS: list[type[BaseModel]] = [
     models.Note,
 ]
 
+# Contratos que não são do domínio; o nome do arquivo é fixo (B02 §3).
+EXTRA_SCHEMAS: dict[str, type[BaseModel]] = {
+    "gold.schema.json": GoldFile,
+}
+
 
 def _to_kebab(name: str) -> str:
     out = []
@@ -52,8 +58,10 @@ def render(model: type[BaseModel]) -> str:
 def main(check: bool) -> int:
     SCHEMAS_DIR.mkdir(parents=True, exist_ok=True)
     stale: list[str] = []
-    for model in DOMAIN_MODELS:
-        path = SCHEMAS_DIR / f"{_to_kebab(model.__name__)}.json"
+    targets = [(f"{_to_kebab(m.__name__)}.json", m) for m in DOMAIN_MODELS]
+    targets += list(EXTRA_SCHEMAS.items())
+    for name, model in targets:
+        path = SCHEMAS_DIR / name
         content = render(model)
         if check:
             if not path.exists() or path.read_text(encoding="utf-8") != content:
@@ -70,7 +78,7 @@ def main(check: bool) -> int:
         )
         return 1
     if check:
-        print(f"{len(DOMAIN_MODELS)} schemas em dia")
+        print(f"{len(targets)} schemas em dia")
     return 0
 
 

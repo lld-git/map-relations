@@ -17,6 +17,7 @@ planejado. O único diagrama de fluxo do projeto está em
 | Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
 | CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
 | Ontologia | `contracts/ontology/`, `core/ontology*.py`, `ontology_io.py` | `relations.yaml` (fonte) → `Ontology`, trava de ids e artefatos gerados | Modelos puros em `core`; leitura de YAML só em `ontology_io` (ADR 011) |
+| Gabarito | `research/map_relations/evaluation/gold.py`, `contracts/schemas/gold.schema.json` | `GoldFile`, `Anchor` (exact/prefix/suffix + offsets) e `validate_gold` contra ontologia e canônico | Fora do domínio; o gabarito real vive em `data/golden/`, fora do Git (ADR 012) |
 | Scripts | `scripts/` | Geração/verificação de schemas e da ontologia | Rodam só em Docker |
 | Testes | `tests/` | pytest, tudo em Docker | Não importam fornecedores diretamente |
 
@@ -186,3 +187,4 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [009](adr/009-camada-comum-layout.md) | Opção B do B04d: camada comum de layout (`LayoutItem`) entre conversores |
 | [010](adr/010-reconhecimento-mineru.md) | Reconhecimento do MinerU Basic: campos reais, licença, custo — sem adaptador |
 | [011](adr/011-ontologia-de-relacoes.md) | Ontologia de relações versionada; `claim_key` pelo RelationType; classe `alegada`; `narrative_scope` |
+| [012](adr/012-gabarito-e-ancora.md) | Formato do gabarito e âncora de evidência (citação + contexto + posição) |

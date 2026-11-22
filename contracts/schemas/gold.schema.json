@@ -1,0 +1,385 @@
+{
+  "$defs": {
+    "Anchor": {
+      "additionalProperties": false,
+      "description": "TextQuoteSelector (exact, prefix, suffix) + TextPositionSelector.\n\nOffsets em code points sobre o canônico NFC, fim exclusivo (ADR 004).\nA citação com o contexto é a verdade; a posição é o atalho.",
+      "properties": {
+        "endOffset": {
+          "minimum": 1,
+          "title": "Endoffset",
+          "type": "integer"
+        },
+        "exact": {
+          "minLength": 1,
+          "title": "Exact",
+          "type": "string"
+        },
+        "prefix": {
+          "title": "Prefix",
+          "type": "string"
+        },
+        "startOffset": {
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "integer"
+        },
+        "suffix": {
+          "title": "Suffix",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exact",
+        "prefix",
+        "suffix",
+        "startOffset",
+        "endOffset"
+      ],
+      "title": "Anchor",
+      "type": "object"
+    },
+    "ClaimClass": {
+      "enum": [
+        "afirmada",
+        "alegada",
+        "inferida",
+        "coocorrencia",
+        "interpretacao"
+      ],
+      "title": "ClaimClass",
+      "type": "string"
+    },
+    "Expected": {
+      "enum": [
+        "sem_relacao"
+      ],
+      "title": "Expected",
+      "type": "string"
+    },
+    "GoldEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "fictional": {
+          "default": false,
+          "title": "Fictional",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "preferredName": {
+          "minLength": 1,
+          "title": "Preferredname",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "preferredName"
+      ],
+      "title": "GoldEntity",
+      "type": "object"
+    },
+    "GoldRelation": {
+      "additionalProperties": false,
+      "properties": {
+        "asserted_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asserted By"
+        },
+        "class": {
+          "$ref": "#/$defs/ClaimClass"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Anchor"
+          },
+          "minItems": 1,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "fictional": {
+          "default": false,
+          "title": "Fictional",
+          "type": "boolean"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "narrative_scope": {
+          "$ref": "#/$defs/NarrativeScope"
+        },
+        "object": {
+          "title": "Object",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "origin_detail": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OriginDetail"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "type",
+        "object",
+        "class",
+        "narrative_scope",
+        "origin",
+        "evidence"
+      ],
+      "title": "GoldRelation",
+      "type": "object"
+    },
+    "GoldScope": {
+      "additionalProperties": false,
+      "properties": {
+        "chapters": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Chapters",
+          "type": "array"
+        },
+        "narrative_scopes_evaluated": {
+          "items": {
+            "$ref": "#/$defs/NarrativeScope"
+          },
+          "minItems": 1,
+          "title": "Narrative Scopes Evaluated",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chapters",
+        "narrative_scopes_evaluated"
+      ],
+      "title": "GoldScope",
+      "type": "object"
+    },
+    "GoldSource": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "end": {
+          "const": "exclusive",
+          "title": "End",
+          "type": "string"
+        },
+        "offset_unit": {
+          "const": "codepoint_nfc",
+          "title": "Offset Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content_hash",
+        "offset_unit",
+        "end"
+      ],
+      "title": "GoldSource",
+      "type": "object"
+    },
+    "NarrativeScope": {
+      "enum": [
+        "obra",
+        "texto_encaixado"
+      ],
+      "title": "NarrativeScope",
+      "type": "string"
+    },
+    "NegativePair": {
+      "additionalProperties": false,
+      "properties": {
+        "chapters": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Chapters",
+          "type": "array"
+        },
+        "expected": {
+          "$ref": "#/$defs/Expected"
+        },
+        "fictional": {
+          "default": false,
+          "title": "Fictional",
+          "type": "boolean"
+        },
+        "object": {
+          "title": "Object",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "object",
+        "chapters",
+        "expected"
+      ],
+      "title": "NegativePair",
+      "type": "object"
+    },
+    "Origin": {
+      "enum": [
+        "modelo",
+        "humano",
+        "modelo_revisado"
+      ],
+      "title": "Origin",
+      "type": "string"
+    },
+    "OriginDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "reviewed_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewed By"
+        }
+      },
+      "title": "OriginDetail",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "annotation_rules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Annotation Rules",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/GoldEntity"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "negative_pairs": {
+      "items": {
+        "$ref": "#/$defs/NegativePair"
+      },
+      "title": "Negative Pairs",
+      "type": "array"
+    },
+    "ontology_version": {
+      "minimum": 1,
+      "title": "Ontology Version",
+      "type": "integer"
+    },
+    "relations": {
+      "items": {
+        "$ref": "#/$defs/GoldRelation"
+      },
+      "title": "Relations",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "$ref": "#/$defs/GoldScope"
+    },
+    "source": {
+      "$ref": "#/$defs/GoldSource"
+    },
+    "work": {
+      "minLength": 1,
+      "title": "Work",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "work",
+    "source",
+    "ontology_version",
+    "scope",
+    "entities",
+    "relations"
+  ],
+  "title": "GoldFile",
+  "type": "object"
+}

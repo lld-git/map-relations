@@ -221,12 +221,38 @@ narrative_scope)`, `rules.new_claim`, `ClaimClass.alegada`, `Claim.asserted_by` 
 `vigia` virou `exerce_vigilancia_sobre` (trava regenerada do zero, ainda não
 publicada). 270 testes; `make check` e os dois jobs do CI verdes.
 
-**Próximo passo: B02** — gabarito em `data/golden/processo.json` (fora do Git;
-converter `"version": "1.0.0"` e `asserted_by` por nome para os ids da ontologia e
-das entidades), reescrever `build_gold.py` no pacote, validar o gabarito contra
-a ontologia e criar `eval --run <arquivo> --gold <arquivo>`. A V1 avalia só
-`narrative_scope = obra`; `texto_encaixado` é excluído dos dois lados e contado
-à parte.
+**Plano do B02 aprovado** em [docs/plans/B02.md](plans/B02.md) (2026-11-21),
+com D1–D9 fechadas. Destaques: 38 dos 40 offsets do rascunho estão velhos
+(hash do canônico mudou), e o fill-offsets vem antes de tudo. A avaliação tem
+duas medidas, estrita (com `asserted_by`) e relaxada (sem `asserted_by` nem
+classe). O capítulo de controle é o cap. 5, que exige uma anotação do modelo
+para esse capítulo, ainda sem responsável definido.
+
+**B02 em andamento** na branch `b02-gabarito` (a partir do master `2fbe888`, sem
+push; o plano previa `b02-avaliacao`, o nome foi trocado por decisão do Leon).
+Feitas as fases 0 e 1 do plano (§2 a §4), um commit por fase:
+- **Fase 0 — `make ci`:** `ci-test` e `ci-prod` espelham os dois jobs do
+  `ci.yml` (sem volumes, `appuser`); `tests/test_ci_sync.py` falha se os `docker
+  run` ou o `target` divergirem. Desvio do plano: o contexto do build é
+  `git archive $(git write-tree)` (o índice de verdade), não `git ls-files | tar`,
+  que empacotava a árvore de trabalho e deixou vazar uma modificação não staged.
+  Consequência: `git add` antes de `make ci`. `.github/` saiu do `.dockerignore` e
+  Makefile/.github entram como volumes `:ro` para o teste rodar no `make check`.
+- **Fase 1 — gabarito:** `evaluation/gold.py` (`GoldFile`, `Anchor` com exact,
+  prefix, suffix, startOffset e endOffset, `check_anchor`, `validate_gold`,
+  `relation_id`), `contracts/schemas/gold.schema.json` gerado e conferido no
+  `generate_schemas --check` (CI), ADR 012, 51 testes novos (um por regra do §3).
+
+**Próximo passo exato: fase 2 do plano (§5), `gold fill-offsets`.** Criar
+`evaluation/anchoring.py` com a busca de ocorrências de `exact` no canônico, o
+contexto de 32 code points que cresce até 128 sem cortar palavra e os erros
+`ambigua`/`nao_encontrada` (sem usar offset antigo, ordinal nem casamento
+aproximado); um modelo de entrada para o modo âncora mínima (só `exact`); o
+subcomando `python -m map_relations gold fill-offsets --gold --canonical --out`
+(tudo ou nada, `--out` ≠ `--gold`, relatório JSON e tabela) e `make gold-fill`.
+Pendente da fase 1: o subcomando `gold validate` (a função existe) depende de
+carregar um `IngestResult` de `data/processed/<hash>/`; fazer junto com o fill-offsets,
+que precisa do mesmo carregamento para o `locate()`. Testes da fase 2 listados no §11.
 
 **Pontos abertos:** (a) a trava protege só a parte semântica dos abstratos (não têm
 `version`); a visão inversa herda o `version` do dono. (b) Erros estruturais do YAML
@@ -235,7 +261,8 @@ param antes das regras semânticas; os demais saem juntos. (c) `age_em_nome_de` 
 exige montar o diretório (`docker run -v "$PWD":/work -w /work maprelations-app uv
 lock`). (e) Regra do verificador para `alegada`: B05.
 
-**Como retomar:** ler CLAUDE.md, este arquivo e docs/blocks/B02a.md; `make check` verde.
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§5 e §11); `make check` verde.
+Sem commit pendente; `docs/arquitetura_sugest.md` continua não versionado (não é deste bloco).
 
 ---
 
