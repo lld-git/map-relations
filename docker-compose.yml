@@ -19,6 +19,9 @@ services:
       # uv lock montando o diretório (ver ADR 007)
       - ./pyproject.toml:/app/pyproject.toml
       - ./uv.lock:/app/uv.lock
+      # lidos por tests/test_ci_sync.py (make ci × ci.yml)
+      - ./Makefile:/app/Makefile:ro
+      - ./.github:/app/.github:ro
     env_file:
       - path: .env
         required: false

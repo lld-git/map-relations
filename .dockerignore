@@ -11,7 +11,7 @@ dist/
 
 # Git
 .git/
-.github/
+# .github/ fica na imagem: tests/test_ci_sync.py lê o ci.yml (B02 §2)
 
 # Data e saídas de execução (montados como volumes)
 data/

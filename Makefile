@@ -10,7 +10,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: test lint typecheck schema schema-check check ingest map shell docling compare compare-all clean-processed
+.PHONY: test lint typecheck schema schema-check check ci ci-test ci-prod ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -31,6 +31,35 @@ schema-check:
 	$(RUN) uv run python -m scripts.generate_ontology --check
 
 check: lint typecheck schema-check test
+
+# ── make ci: reproduz os dois jobs de .github/workflows/ci.yml (B02 §2) ───────
+# Portão antes do commit de fechamento e do PR; `make check` é o ciclo rápido.
+# O contexto do build é o ÍNDICE do Git (git archive da árvore staged: o que o
+# checkout do CI veria, D8): o que não foi `git add`ado fica de fora, inclusive
+# modificações. Os testes rodam sem volumes e
+# sem `user: 0:0` (código assado na imagem, appuser), como no CI.
+# tests/test_ci_sync.py falha se as listas `docker run` daqui e do ci.yml
+# divergirem; a tag local da dev é maprelations-app (princípio 14).
+CI_DEV = maprelations-app
+CI_PROD = map-relations-prod
+CI_CONTEXT = git archive --format=tar $$(git write-tree)
+
+ci: ci-test ci-prod
+	docker image prune -f
+
+ci-test:
+	$(CI_CONTEXT) | docker build --target dev -t $(CI_DEV) -
+	docker run --rm $(CI_DEV) uv run ruff check .
+	docker run --rm $(CI_DEV) uv run mypy .
+	docker run --rm $(CI_DEV) uv run python -m scripts.generate_schemas --check
+	docker run --rm $(CI_DEV) uv run python -m map_relations ontology check
+	docker run --rm $(CI_DEV) uv run python -m scripts.generate_ontology --check
+	docker run --rm $(CI_DEV) uv run pytest
+
+ci-prod:
+	$(CI_CONTEXT) | docker build --target prod -t $(CI_PROD) -
+	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
+	docker run --rm $(CI_PROD) python -m map_relations ingest --help
 
 # Uso: make ingest PDF=livro.pdf  (o arquivo deve estar em data/raw/).
 # Para PDF a rota padrão é o Docling; sem cache (exit 3), roda o serviço e repete.

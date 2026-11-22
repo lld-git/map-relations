@@ -47,7 +47,8 @@ Quando atualizar cada arquivo:
 13. Tudo roda em Docker. Nunca instale dependências nem execute Python na máquina host.
 14. Nome de imagem Docker só vem do Makefile/docker-compose.yml (hoje:
     `maprelations-app`, construída uma vez e reusada pelos serviços `app` e
-    `painel`; `map-relations-prod`, só na tarefa `build-prod` do CI).
+    `painel`; `map-relations-prod`, só na tarefa `build-prod` do CI e no
+    `make ci`, que também a constrói localmente e faz o prune ao final).
     Nunca rode `docker build`/`docker tag` com outro nome fora desses — nem
     para depurar; apague a imagem de teste assim que terminar. Depois de
     qualquer rebuild, rode `docker image prune` (sem `-a`): o disco da VM do
