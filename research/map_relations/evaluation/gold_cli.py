@@ -108,6 +108,11 @@ def cmd_validate(gold: Path, canonical: Path | None, processed: Path) -> int:
         print(f"erro: {e}")
     for w in rep.warnings:
         print(f"aviso: {w}")
+    via = [p.via for p in rep.proofs.values()]
+    print(
+        f"provas: {via.count('evidencia_alta')} por evidência alta, {via.count('conjunto')} "
+        f"por conjunto declarado, {via.count('nenhuma')} sem prova"
+    )
     print(
         f"gabarito: {len(parsed.relations)} relações, {len(parsed.entities)} entidades, "
         f"{len(parsed.negative_pairs)} pares de controle — "

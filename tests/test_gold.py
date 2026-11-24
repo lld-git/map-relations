@@ -68,6 +68,13 @@ def anchor(exact: str, *, nth: int = 0, ctx: int = 32, text: str = TEXT) -> dict
     }
 
 
+def ev(exact: str, *, chapter: str | None = None, support="alto", polarity="apoia", **kw) -> dict:
+    """Evidência completa (capítulo, âncora, suporte, polaridade) sobre `exact`."""
+    a = anchor(exact, **kw)
+    ch = chapter or ("1" if a["startOffset"] < len(CH1) else "2")
+    return {"chapter": ch, "anchor": a, "support": support, "polarity": polarity}
+
+
 def derive_id(rel: dict, ontology=ONTOLOGY) -> str:
     """Id que a relação deve ter (a validação estrutural pede um id qualquer)."""
     return relation_id(GoldRelation.model_validate({**rel, "id": "x"}), ontology)
@@ -98,7 +105,7 @@ def make_gold(**over) -> dict:
                 "class": "afirmada",
                 "narrative_scope": "obra",
                 "origin": "humano",
-                "evidence": [anchor("Ana vigiava Bruno todos os dias")],
+                "evidence": [ev("Ana vigiava Bruno todos os dias")],
             }
         ],
         "negative_pairs": [],
@@ -214,7 +221,7 @@ def test_alegada_with_known_asserted_by_is_valid():
     d = make_gold()
     rel = only_relation(d)
     rel["class"], rel["asserted_by"] = "alegada", "carla"
-    rel["evidence"] = [anchor("Carla disse que Ana vigiava Bruno")]
+    rel["evidence"] = [ev("Carla disse que Ana vigiava Bruno")]
     rel["id"] = derive_id(rel)
     assert errors(d) == []
 
@@ -272,7 +279,7 @@ def test_disjunction_is_warning_not_error():
             "class": "afirmada",
             "narrative_scope": "obra",
             "origin": "humano",
-            "evidence": [anchor("Ana vigiava Bruno todos os dias")],
+            "evidence": [ev("Ana vigiava Bruno todos os dias")],
         },
         {
             "subject": "ana",
@@ -281,7 +288,7 @@ def test_disjunction_is_warning_not_error():
             "class": "afirmada",
             "narrative_scope": "obra",
             "origin": "humano",
-            "evidence": [anchor("A chave velha estava na gaveta")],
+            "evidence": [ev("A chave velha estava na gaveta")],
         },
     ]
     d = make_gold(**{k: v for k, v in d.items()})
@@ -293,7 +300,7 @@ def test_disjunction_is_warning_not_error():
 def test_duplicate_claim_key_is_error():
     d = make_gold()
     dup = copy.deepcopy(only_relation(d))
-    dup["evidence"] = [anchor("A chave velha estava na gaveta")]
+    dup["evidence"] = [ev("A chave velha estava na gaveta")]
     d["relations"].append(dup)
     assert any("duplica a relação" in e for e in errors(d))
 
@@ -311,7 +318,7 @@ def test_duplicate_claim_key_sees_symmetry_from_the_type():
                 "class": "afirmada",
                 "narrative_scope": "obra",
                 "origin": "humano",
-                "evidence": [anchor(quote)],
+                "evidence": [ev(quote)],
             }
         )
     d = make_gold(relations=d["relations"])
@@ -367,7 +374,7 @@ def test_relation_without_evidence_is_rejected():
 
 def test_unknown_field_is_rejected():
     d = make_gold()
-    only_relation(d)["chapter"] = "1"  # o capítulo é derivado, nunca gravado
+    only_relation(d)["chapter"] = "1"  # o capítulo é da evidência, não da relação
     with pytest.raises(ValidationError):
         GoldFile.model_validate(d)
 
@@ -389,7 +396,7 @@ def test_content_hash_format_is_checked():
 
 def test_anchor_off_by_one_is_error():
     d = make_gold()
-    a = only_relation(d)["evidence"][0]
+    a = only_relation(d)["evidence"][0]["anchor"]
     a["startOffset"] += 1
     a["endOffset"] += 1
     assert any("text[startOffset:endOffset] ≠ exact" in e for e in errors(d))
@@ -397,10 +404,10 @@ def test_anchor_off_by_one_is_error():
 
 def test_anchor_with_wrong_prefix_or_suffix_is_error():
     d = make_gold()
-    only_relation(d)["evidence"][0]["prefix"] = "XX"
+    only_relation(d)["evidence"][0]["anchor"]["prefix"] = "XX"
     assert any("prefix não confere" in e for e in errors(d))
     d = make_gold()
-    only_relation(d)["evidence"][0]["suffix"] = "XX"
+    only_relation(d)["evidence"][0]["anchor"]["suffix"] = "XX"
     assert any("suffix não confere" in e for e in errors(d))
 
 
@@ -408,8 +415,8 @@ def test_fictional_relation_is_not_checked_against_canonical():
     d = make_gold()
     rel = only_relation(d)
     rel["fictional"] = True
-    rel["evidence"][0]["startOffset"] += 5
-    rel["evidence"][0]["endOffset"] += 5
+    rel["evidence"][0]["anchor"]["startOffset"] += 5
+    rel["evidence"][0]["anchor"]["endOffset"] += 5
     assert errors(d) == []
 
 
@@ -515,6 +522,130 @@ def test_anchor_counts_code_points_not_bytes_or_utf16():
     a = Anchor.model_validate(anchor("café é bom", ctx=6, text=text))
     assert a.start_offset == text.index("café")  # code points
     assert check_anchor(a, text) == []
+
+
+# ── evidências: suporte, polaridade, prova e capítulo ─────────────────────────
+
+
+def _add(d: dict, *evidence: dict, **rel_fields) -> dict:
+    rel = only_relation(d)
+    rel["evidence"] = list(evidence)
+    rel.update(rel_fields)
+    return d
+
+
+A = "Ana vigiava Bruno todos os dias"
+B = "A chave velha estava na gaveta"
+
+
+def test_evidence_requires_chapter_support_and_polarity():
+    for key in ("chapter", "support", "polarity"):
+        d = make_gold()
+        del only_relation(d)["evidence"][0][key]
+        with pytest.raises(ValidationError):
+            GoldFile.model_validate(d)
+
+
+def test_evidence_values_are_checked():
+    for key, bad in (("support", "forte"), ("polarity", "neutra")):
+        d = make_gold()
+        only_relation(d)["evidence"][0][key] = bad
+        with pytest.raises(ValidationError):
+            GoldFile.model_validate(d)
+
+
+def test_evidence_note_is_optional():
+    d = make_gold()
+    only_relation(d)["evidence"][0]["note"] = "nota do anotador"
+    assert GoldFile.model_validate(d).relations[0].evidence[0].note == "nota do anotador"
+
+
+@pytest.mark.parametrize(
+    "field", ["quote", "support_profile", "support_weight", "prova_status", "also_in_chapters"]
+)
+def test_computed_fields_are_not_part_of_the_gold(field):
+    d = make_gold()
+    only_relation(d)["evidence"][0][field] = 1
+    with pytest.raises(ValidationError):
+        GoldFile.model_validate(d)
+    d = make_gold()
+    only_relation(d)[field] = 1
+    with pytest.raises(ValidationError):
+        GoldFile.model_validate(d)
+
+
+def test_evidence_chapter_must_match_locate():
+    d = make_gold()
+    only_relation(d)["evidence"][0]["chapter"] = "2"
+    assert any("chapter '2' ≠ capítulo do trecho ('1')" in e for e in errors(d))
+
+
+def proof(d: dict):
+    rep = validate(d)
+    return rep, rep.proofs[only_relation(d)["id"]]
+
+
+def test_high_supporting_evidence_proves_the_relation():
+    d = _add(make_gold(), ev(A, support="medio"), ev(B, support="alto"))
+    rep, p = proof(d)
+    assert p.proved and p.via == "evidencia_alta" and rep.warnings == []
+
+
+def test_high_but_contradicting_does_not_prove():
+    d = _add(make_gold(), ev(A, support="alto", polarity="contradiz"))
+    rep, p = proof(d)
+    assert not p.proved and p.via == "nenhuma" and p.contradicting == 1 and p.weight == 0
+    assert any("sem prova" in w for w in rep.warnings)
+
+
+def test_medium_and_low_without_declaration_are_not_proved():
+    d = _add(make_gold(), ev(A, support="medio"), ev(B, support="medio"))
+    rep, p = proof(d)
+    assert not p.proved and p.weight == 4  # o peso nunca prova sozinho
+    assert any("sem prova" in w for w in rep.warnings)
+
+
+def test_declared_conjunction_proves_without_high_evidence():
+    d = _add(
+        make_gold(), ev(A, support="medio"), ev(B, support="medio"), provas_em_conjunto="suficiente"
+    )
+    rep, p = proof(d)
+    assert p.proved and p.via == "conjunto" and p.weight == 4
+    assert rep.warnings == []
+
+
+def test_declared_conjunction_below_cutoff_warns_but_still_proves():
+    d = _add(
+        make_gold(), ev(A, support="medio"), ev(B, support="baixo"), provas_em_conjunto="suficiente"
+    )
+    rep, p = proof(d)
+    assert p.proved and p.weight == 3
+    assert any("abaixo do corte (4" in w and "calibrar no B03" in w for w in rep.warnings)
+
+
+def test_contradicting_evidence_adds_no_weight():
+    d = _add(
+        make_gold(),
+        ev(A, support="medio"),
+        ev(B, support="alto", polarity="contradiz"),
+        provas_em_conjunto="suficiente",
+    )
+    _, p = proof(d)
+    assert p.weight == 2 and p.profile == {"alto": 0, "medio": 1, "baixo": 0}
+
+
+def test_provas_em_conjunto_only_accepts_suficiente():
+    d = make_gold()
+    only_relation(d)["provas_em_conjunto"] = "insuficiente"
+    with pytest.raises(ValidationError):
+        GoldFile.model_validate(d)
+
+
+def test_proof_status_is_not_stored_in_the_validated_model():
+    d = make_gold()
+    dumped = GoldFile.model_validate(d).model_dump(by_alias=True, mode="json", exclude_none=True)
+    fields = set(dumped["relations"][0]["evidence"][0])
+    assert fields == {"chapter", "anchor", "support", "polarity"}
 
 
 # ── schema gerado ─────────────────────────────────────────────────────────────

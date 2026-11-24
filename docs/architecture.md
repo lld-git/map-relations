@@ -17,7 +17,7 @@ planejado. O único diagrama de fluxo do projeto está em
 | Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
 | CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
 | Ontologia | `contracts/ontology/`, `core/ontology*.py`, `ontology_io.py` | `relations.yaml` (fonte) → `Ontology`, trava de ids e artefatos gerados | Modelos puros em `core`; leitura de YAML só em `ontology_io` (ADR 011) |
-| Gabarito | `research/map_relations/evaluation/gold.py`, `contracts/schemas/gold.schema.json` | `GoldFile`, `Anchor` (exact/prefix/suffix + offsets) e `validate_gold` contra ontologia e canônico; `anchoring.py`/`fill_offsets.py` (âncora sem chute, tudo ou nada), `convert_draft.py` e os subcomandos `gold ...` (`gold_cli.py`) | Fora do domínio; o gabarito real vive em `data/golden/`, fora do Git (ADR 012) |
+| Gabarito | `research/map_relations/evaluation/gold.py`, `contracts/schemas/gold.schema.json` | `GoldFile`, `GoldEvidence` (capítulo, âncora, suporte, polaridade, nota; prova calculada só no relatório), `Anchor` (exact/prefix/suffix + offsets) e `validate_gold` contra ontologia e canônico; `anchoring.py`/`fill_offsets.py` (âncora sem chute, tudo ou nada), `convert_draft.py` e os subcomandos `gold ...` (`gold_cli.py`) | Fora do domínio; o gabarito real vive em `data/golden/`, fora do Git (ADR 012) |
 | Scripts | `scripts/` | Geração/verificação de schemas e da ontologia | Rodam só em Docker |
 | Testes | `tests/` | pytest, tudo em Docker | Não importam fornecedores diretamente |
 

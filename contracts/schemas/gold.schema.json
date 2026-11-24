@@ -49,6 +49,14 @@
       "title": "ClaimClass",
       "type": "string"
     },
+    "Conjoint": {
+      "description": "`provas_em_conjunto`: o anotador declara que as evidências, juntas, bastam.",
+      "enum": [
+        "suficiente"
+      ],
+      "title": "Conjoint",
+      "type": "string"
+    },
     "Expected": {
       "enum": [
         "sem_relacao"
@@ -89,6 +97,46 @@
       "title": "GoldEntity",
       "type": "object"
     },
+    "GoldEvidence": {
+      "additionalProperties": false,
+      "description": "Uma evidência: só decisões de anotação. Nada calculado é gravado aqui\n(peso, perfil, situação da prova e capítulos extras vão só ao relatório).",
+      "properties": {
+        "anchor": {
+          "$ref": "#/$defs/Anchor"
+        },
+        "chapter": {
+          "minLength": 1,
+          "title": "Chapter",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "polarity": {
+          "$ref": "#/$defs/Polarity"
+        },
+        "support": {
+          "$ref": "#/$defs/Support"
+        }
+      },
+      "required": [
+        "chapter",
+        "anchor",
+        "support",
+        "polarity"
+      ],
+      "title": "GoldEvidence",
+      "type": "object"
+    },
     "GoldRelation": {
       "additionalProperties": false,
       "properties": {
@@ -109,7 +157,7 @@
         },
         "evidence": {
           "items": {
-            "$ref": "#/$defs/Anchor"
+            "$ref": "#/$defs/GoldEvidence"
           },
           "minItems": 1,
           "title": "Evidence",
@@ -138,6 +186,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/OriginDetail"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provas_em_conjunto": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Conjoint"
             },
             {
               "type": "null"
@@ -317,6 +376,24 @@
       },
       "title": "OriginDetail",
       "type": "object"
+    },
+    "Polarity": {
+      "enum": [
+        "apoia",
+        "contradiz"
+      ],
+      "title": "Polarity",
+      "type": "string"
+    },
+    "Support": {
+      "description": "Quanto a evidência, sozinha, sustenta a relação (decisão do anotador).",
+      "enum": [
+        "alto",
+        "medio",
+        "baixo"
+      ],
+      "title": "Support",
+      "type": "string"
     }
   },
   "additionalProperties": false,

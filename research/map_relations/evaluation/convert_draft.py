@@ -36,6 +36,8 @@ from map_relations.evaluation.gold import (
     HASH_PREFIX,
     GoldFile,
     GoldRelation,
+    Polarity,
+    Support,
     relation_id,
     validate_gold,
 )
@@ -285,13 +287,13 @@ def _convert_relation(
         errs.append(f"classe '{raw['class']}' fora do contrato")
         cls = None
 
-    evidence = _resolve_quote(raw, canon, outcome)
-    if errs or evidence is None or cls is None:
+    anchor = _resolve_quote(raw, canon, outcome)
+    if errs or anchor is None or cls is None:
         return outcome, None
 
     draft_chapter = str(raw.get("chapter", ""))
-    actual = canon.paragraph_at(evidence["startOffset"]).chapter
-    outcome.where = canon.locate(evidence["startOffset"])
+    actual = canon.paragraph_at(anchor["startOffset"]).chapter
+    outcome.where = canon.locate(anchor["startOffset"])
     if draft_chapter != ("" if actual is None else str(actual)):
         errs.append(f"capítulo do rascunho ({draft_chapter}) ≠ {outcome.where}")
         return outcome, None
@@ -306,7 +308,15 @@ def _convert_relation(
         "narrative_scope": "obra",  # A3: o rascunho não tem; fica para o humano confirmar
         "origin": "modelo",
         "origin_detail": {"model": raw.get("model") or UNKNOWN_MODEL},
-        "evidence": [evidence],
+        # o rascunho tem uma citação por relação: uma evidência alta que apoia
+        "evidence": [
+            {
+                "chapter": draft_chapter,
+                "anchor": anchor,
+                "support": Support.alto.value,
+                "polarity": Polarity.apoia.value,
+            }
+        ],
     }
     try:
         rel = GoldRelation.model_validate(candidate)

@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-22 (B02, fases 0 a 3)
+# Status — atualizado em 2026-11-24 (B02, fases 0 a 3 + revisão do formato; próxima: sessão 3b)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -259,13 +259,46 @@ Feitas as fases 0 a 3 do plano (§2 a §6); as fases 2 e 3 num só commit:
   `processo.gold.json` NÃO foi gerado (tudo ou nada).** O rascunho tem 39 relações
   (o plano dizia 40). Relatório JSON em `data/golden/processo.convert-report.json`.
 
-**Próximo passo exato:** decisão D4 do Leon sobre a relação #3: ver as duas
-candidatas (`make gold-convert DRAFT=data/golden/processo.json
-OUT=data/golden/processo.gold.json`), acrescentar `"prefix"` (texto idêntico, colado
-antes da citação) a essa relação no rascunho e rodar de novo. Depois, conferir:
-(a) `narrative_scope = obra` atribuído a todas; (b) a regra do cabeçalho/rodapé do
-digitalizador em `annotation_rules`; (c) `make gold-validate GOLD=data/golden/processo.gold.json`.
-Em seguida, fase 4 (§7): `RunFile`, alinhamento, casamento, métricas e `eval`.
+**Revisão do formato (2026-11-24, mesma branch, 1 commit depois das fases 2 e 3):**
+- **Evidências** (ADR 012): `evidence` é lista de 1+ itens `{chapter, anchor, support
+  (alto|medio|baixo), polarity (apoia|contradiz), note?}`; `anchor.exact` obrigatório,
+  o resto da âncora vem do fill-offsets (que agora refaz só `evidence[j].anchor`).
+  Provada = evidência alta que apoia **ou** `provas_em_conjunto: suficiente`. O peso
+  (alto=3, medio=2, baixo=1; só das que apoiam) não decide: só gera alerta se o conjunto
+  foi declarado suficiente e a soma fica abaixo do corte (4). **Pesos e corte são
+  provisórios, a calibrar no B03.** Nada calculado é gravado (sem `quote`,
+  `support_profile`, `support_weight`, `prova_status`, `also_in_chapters`; `extra=forbid`
+  os rejeita); os valores saem em `GoldReport.proofs` e no `gold validate`.
+  `chapter` é conferido contra `locate()`. A conversão cria 1 evidência alta que apoia
+  por relação. Esses campos calculados nunca existiram no código; o que mudou foi o
+  formato de `evidence`.
+- **Nomes → ids:** já era assim na conversão (casamento exato por `preferredName`/alias,
+  desconhecido ou ambíguo = erro listado, id = slug do `preferredName`, colisão = erro);
+  ganhou testes (mesmo id em qualquer capítulo/execução, sem casamento aproximado).
+- **Ontologia:** `when_to_use` de `vinculo_amoroso_com` ganhou "interesse manifestado
+  pelos dois lados na mesma cena". A trava exigiu subir `version` desse tipo (1 → 2)
+  porque o conteúdo mudou; nenhum id mudou e o hash `semantic` ficou igual. Regenerado
+  com `make schema` (generate_ontology).
+- **Imagem prod:** confirmado que continha `.github/` e `Makefile` (o `COPY . .` do
+  B02 fase 0). Agora o Dockerfile tem o estágio descartável `ctx` que os remove e o
+  `prod` copia dele (nenhuma camada do prod os tem); o `dev` os recebe por `COPY`
+  próprio (o `test_ci_sync` precisa). Passo novo no `ci.yml` e no `make ci-prod`:
+  `test ! -e .github && test ! -e Makefile` na imagem prod.
+
+**Decisão sobre o fluxo do bloco:** depois deste commit, o B02 é mesclado no master e
+o §9 (capítulo de controle: `gold template`, `gold compare`, anotação do modelo e do
+Leon para o cap. 5) vira um **bloco separado**. Ficam no B02: fases 4 (§7), 5 (§8) e 7.
+A fase 6 sai.
+
+**Próximo passo exato: sessão 3b — §7 (avaliação) e §8 (MLflow).** Fase 4: `RunFile`,
+alinhamento, casamento (estrito e relaxado), métricas e `eval`; fase 5: `RunTracker`,
+`MlflowTracker`, serviço `mlflow`, ADR 013. Atenção ao novo formato: só relações
+**provadas** (`GoldReport.proofs`) devem entrar como gabarito positivo do `eval`, e
+evidências `contradiz` não contam como prova. Antes: o Leon ajusta o rascunho, resolve a
+relação #3 (D4, `prefix`) e roda `make gold-convert` para gerar `processo.gold.json`
+(ainda não existe); conferir (a) `narrative_scope = obra`, (b) a regra do
+cabeçalho/rodapé em `annotation_rules`, (c) `make gold-validate GOLD=…`. A sessão 3b
+não precisa do gabarito real: usa fixtures sintéticas.
 
 **Pontos abertos:** (a) a trava protege só a parte semântica dos abstratos (não têm
 `version`); a visão inversa herda o `version` do dono. (b) Erros estruturais do YAML
@@ -274,7 +307,7 @@ param antes das regras semânticas; os demais saem juntos. (c) `age_em_nome_de` 
 exige montar o diretório (`docker run -v "$PWD":/work -w /work maprelations-app uv
 lock`). (e) Regra do verificador para `alegada`: B05.
 
-**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§5 e §11); `make check` verde.
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§7, §8 e §11); `make check` verde.
 `docs/arquitetura_sugest.md` continua não versionado (não é deste bloco).
 
 ---

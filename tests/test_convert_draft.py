@@ -80,9 +80,69 @@ def test_full_conversion_is_valid_against_ontology_and_canonical():
 
 def test_old_offsets_are_discarded():
     new, _ = convert(draft())
-    ev = new["relations"][0]["evidence"][0]
+    ev = new["relations"][0]["evidence"][0]["anchor"]
     assert ev["startOffset"] == CANON.text.index("Ana vigiava Bruno")  # não o 5 do rascunho
     assert "occurrences_in_text" not in new["relations"][0]
+
+
+def test_each_draft_relation_gets_one_high_supporting_evidence():
+    new, rep = convert(draft())
+    assert rep.ok
+    for rel, chapter in zip(new["relations"], ("1", "2"), strict=True):
+        assert len(rel["evidence"]) == 1
+        e = rel["evidence"][0]
+        assert (e["chapter"], e["support"], e["polarity"]) == (chapter, "alto", "apoia")
+        assert set(e) == {"chapter", "anchor", "support", "polarity"}
+        assert "provas_em_conjunto" not in rel
+    gold = GoldFile.model_validate(new)
+    rep2 = validate_gold(gold, ONTO, CANON)
+    assert all(p.proved and p.via == "evidencia_alta" for p in rep2.proofs.values())
+    assert rep2.warnings == []
+
+
+def test_same_character_has_same_id_in_every_chapter_and_across_runs():
+    d = draft()
+    d2 = copy.deepcopy(d)
+    d2["relations"] = d2["relations"][1:]  # só o capítulo 2
+    a, _ = convert(d)
+    b, _ = convert(d2)
+
+    def ids(g: dict) -> dict:
+        return {e["preferredName"]: e["id"] for e in g["entities"]}
+
+    assert ids(a) == ids(b) == {"Ana": "ana", "Bruno": "bruno", "Carla Éster": "carla_ester"}
+    assert a["relations"][1]["asserted_by"] == b["relations"][0]["asserted_by"] == "carla_ester"
+
+
+def test_name_matches_preferred_name_or_alias_exactly_never_approximately():
+    d = draft()
+    d["relations"][0]["subject"] = "ana"  # caixa diferente
+    _, rep = convert(d)
+    assert not rep.ok and any("nenhuma entidade casa" in e for e in rep.relations[0].errors)
+    d = draft()
+    d["relations"][1]["asserted_by"] = "Carla"  # prefixo do nome
+    _, rep = convert(d)
+    assert any("asserted_by 'Carla': nenhuma entidade casa" in e for e in rep.relations[1].errors)
+
+
+def test_unknown_names_are_listed_all_at_once():
+    d = draft()
+    d["relations"][0].update(subject="Fulano", object="Beltrano")
+    new, rep = convert(d)
+    assert new is None
+    errs = rep.relations[0].errors
+    assert any("sujeito 'Fulano'" in e for e in errs)
+    assert any("objeto 'Beltrano'" in e for e in errs)
+
+
+def test_declared_entity_gets_id_from_preferred_name_and_collision_is_error():
+    d = draft()
+    d["entities"].append({"preferredName": "Nova Pessoa", "aliases": []})
+    new, rep = convert(d)
+    assert rep.ok and "nova_pessoa" in {e["id"] for e in new["entities"]}
+    d["entities"].append({"preferredName": "nova  pessoa", "aliases": []})  # mesmo slug
+    new, rep = convert(d)
+    assert new is None and any("dão o mesmo id 'nova_pessoa'" in e for e in rep.errors)
 
 
 def test_draft_is_not_modified():
@@ -120,7 +180,7 @@ def test_hand_prefix_resolves_the_ambiguity():
     i = CANON.text.index("a chave velha sumiu")
     d["relations"][0].update(quote="a chave velha", prefix=CANON.text[i - 12 : i], chapter="2")
     new, rep = convert(d)
-    assert rep.ok and new["relations"][0]["evidence"][0]["startOffset"] == i
+    assert rep.ok and new["relations"][0]["evidence"][0]["anchor"]["startOffset"] == i
 
 
 def test_quote_not_found_is_error():
@@ -207,3 +267,14 @@ def test_cli_validate_reports_stale_hash(tmp_path: Path, capsys):
     g.write_text(json.dumps(new), encoding="utf-8")
     assert main(["gold", "validate", "--gold", str(g), "--canonical", str(canon)]) == 1
     assert "rode fill-offsets" in capsys.readouterr().out
+
+
+def test_cli_validate_prints_proof_counts(tmp_path: Path, capsys):
+    canon = write_processed(tmp_path, CANON)
+    new, _ = convert(draft())
+    g = tmp_path / "g.json"
+    g.write_text(json.dumps(new), encoding="utf-8")
+    assert main(["gold", "validate", "--gold", str(g), "--canonical", str(canon)]) == 0
+    assert "provas: 2 por evidência alta, 0 por conjunto declarado, 0 sem prova" in (
+        capsys.readouterr().out
+    )

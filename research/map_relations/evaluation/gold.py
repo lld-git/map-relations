@@ -53,6 +53,30 @@ class Expected(enum.StrEnum):
     sem_relacao = "sem_relacao"
 
 
+class Support(enum.StrEnum):
+    """Quanto a evidência, sozinha, sustenta a relação (decisão do anotador)."""
+
+    alto = "alto"
+    medio = "medio"
+    baixo = "baixo"
+
+
+class Polarity(enum.StrEnum):
+    apoia = "apoia"
+    contradiz = "contradiz"
+
+
+class Conjoint(enum.StrEnum):
+    """`provas_em_conjunto`: o anotador declara que as evidências, juntas, bastam."""
+
+    suficiente = "suficiente"
+
+
+# Pesos e corte PROVISÓRIOS (ADR 012): a calibrar no B03 com execuções reais.
+SUPPORT_WEIGHTS: dict[Support, int] = {Support.alto: 3, Support.medio: 2, Support.baixo: 1}
+CONJOINT_CUTOFF = 4
+
+
 # ── âncora (§4) ───────────────────────────────────────────────────────────────
 
 
@@ -138,6 +162,17 @@ class OriginDetail(_Model):
     note: str | None = None
 
 
+class GoldEvidence(_Model):
+    """Uma evidência: só decisões de anotação. Nada calculado é gravado aqui
+    (peso, perfil, situação da prova e capítulos extras vão só ao relatório)."""
+
+    chapter: str = Field(min_length=1)  # conferido contra locate() na validação
+    anchor: Anchor
+    support: Support
+    polarity: Polarity
+    note: str | None = None
+
+
 class GoldRelation(_Model):
     id: str
     subject: str
@@ -148,7 +183,8 @@ class GoldRelation(_Model):
     narrative_scope: NarrativeScope  # obrigatório: o anotador sempre decide
     origin: Origin
     origin_detail: OriginDetail | None = None
-    evidence: list[Anchor] = Field(min_length=1)  # princípio 4
+    evidence: list[GoldEvidence] = Field(min_length=1)  # princípio 4
+    provas_em_conjunto: Conjoint | None = None
     fictional: bool = False
 
     @model_validator(mode="after")
@@ -212,10 +248,40 @@ class _HasChapter(Protocol):
     chapter: int | None
 
 
+@dataclass(frozen=True)
+class ProofSummary:
+    """Situação da prova de uma relação. Calculada, nunca gravada no gabarito."""
+
+    proved: bool
+    via: Literal["evidencia_alta", "conjunto", "nenhuma"]
+    profile: dict[str, int]  # evidências que apoiam, por nível de suporte
+    weight: int  # soma dos pesos das evidências que apoiam
+    contradicting: int
+
+
+def relation_proof(rel: GoldRelation) -> ProofSummary:
+    """Provada se há evidência alta que apoia, ou se `provas_em_conjunto = suficiente`.
+    O peso não decide: só alimenta o alerta de `validate_gold`."""
+    supporting = [e for e in rel.evidence if e.polarity is Polarity.apoia]
+    profile = {level.value: 0 for level in Support}
+    for e in supporting:
+        profile[e.support.value] += 1
+    weight = sum(SUPPORT_WEIGHTS[e.support] for e in supporting)
+    contradicting = len(rel.evidence) - len(supporting)
+    if profile[Support.alto.value]:
+        via: Literal["evidencia_alta", "conjunto", "nenhuma"] = "evidencia_alta"
+    elif rel.provas_em_conjunto is Conjoint.suficiente:
+        via = "conjunto"
+    else:
+        via = "nenhuma"
+    return ProofSummary(via != "nenhuma", via, profile, weight, contradicting)
+
+
 @dataclass
 class GoldReport:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    proofs: dict[str, ProofSummary] = field(default_factory=dict)  # por id de relação
 
     @property
     def ok(self) -> bool:
@@ -268,6 +334,7 @@ def validate_gold(
             if ref not in known:
                 err(f"par de controle {pair.subject}/{pair.object_}: entidade '{ref}' não existe")
 
+    _report_proofs(gold, rep)
     _warn_disjoint(gold, ontology, rep)
 
     if canonical is None:
@@ -316,6 +383,23 @@ def _check_relation(
         keys[expected] = rel.id
 
 
+def _report_proofs(gold: GoldFile, rep: GoldReport) -> None:
+    for rel in gold.relations:
+        proof = relation_proof(rel)
+        rep.proofs[rel.id] = proof
+        if rel.provas_em_conjunto is Conjoint.suficiente and proof.weight < CONJOINT_CUTOFF:
+            rep.warnings.append(
+                f"relação {rel.id}: provas_em_conjunto = suficiente, mas a soma dos pesos "
+                f"({proof.weight}) fica abaixo do corte ({CONJOINT_CUTOFF}; "
+                "provisório, calibrar no B03)"
+            )
+        if not proof.proved:
+            rep.warnings.append(
+                f"relação {rel.id}: sem prova (nenhuma evidência alta que apoia e "
+                "provas_em_conjunto não declarado)"
+            )
+
+
 def _warn_disjoint(gold: GoldFile, ontology: Ontology, rep: GoldReport) -> None:
     claims: list[Claim] = []
     for rel in gold.relations:
@@ -355,12 +439,19 @@ def _check_canonical(gold: GoldFile, canonical: Canonical, rep: GoldReport) -> N
         if rel.fictional:
             continue
         chapters: set[str] = set()
-        for i, anchor in enumerate(rel.evidence):
-            for msg in check_anchor(anchor, canonical.text):
+        for i, ev in enumerate(rel.evidence):
+            anchor_errors = check_anchor(ev.anchor, canonical.text)
+            for msg in anchor_errors:
                 err(f"relação {rel.id}, evidência {i}: {msg}")
-            if anchor.end_offset <= len(canonical.text):
-                ch = canonical.paragraph_at(anchor.start_offset).chapter
-                chapters.add("" if ch is None else str(ch))
+            if ev.anchor.end_offset <= len(canonical.text):
+                ch = canonical.paragraph_at(ev.anchor.start_offset).chapter
+                actual = "" if ch is None else str(ch)
+                chapters.add(actual)
+                if ev.chapter != actual:
+                    err(
+                        f"relação {rel.id}, evidência {i}: chapter '{ev.chapter}' ≠ capítulo "
+                        f"do trecho ('{actual}')"
+                    )
         chapters_of.setdefault(frozenset((rel.subject, rel.object_)), set()).update(chapters)
     for pair in gold.negative_pairs:
         if pair.fictional:

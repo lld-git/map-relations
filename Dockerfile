@@ -18,6 +18,16 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 
+# ── ctx: contexto do build sem os arquivos só de CI (.github, Makefile) ───────
+# Só o estágio dev os recebe (tests/test_ci_sync.py os lê). A remoção acontece
+# aqui, num estágio descartado, e não num `rm` dentro do prod: assim nenhuma
+# camada da imagem de execução chega a conter esses arquivos.
+
+FROM base AS ctx
+
+COPY . /ctx
+RUN rm -rf /ctx/.github /ctx/Makefile
+
 # ── prod: dependências de execução e modelo spaCy, sem ferramentas de dev ─────
 
 FROM base AS prod
@@ -28,7 +38,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 RUN useradd --create-home --uid 1000 appuser
 
-COPY --chown=appuser:appuser . .
+COPY --from=ctx --chown=appuser:appuser /ctx/ ./
 
 # 2ª passada instala o próprio pacote, não editável (código vai para site-packages).
 # data/ e eval/runs/ são excluídos do contexto Docker (.dockerignore) e montados
@@ -52,5 +62,9 @@ RUN apt-get update && \
 
 # Reinstala com grupo dev e o pacote em modo editável (código vivo nos volumes)
 RUN uv sync --frozen && chown -R appuser:appuser /app/.venv
+
+# Só para tests/test_ci_sync.py (o prod não os tem, ver o estágio ctx)
+COPY --chown=appuser:appuser Makefile ./Makefile
+COPY --chown=appuser:appuser .github ./.github
 
 USER appuser

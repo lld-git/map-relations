@@ -60,6 +60,7 @@ ci-prod:
 	$(CI_CONTEXT) | docker build --target prod -t $(CI_PROD) -
 	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
 	docker run --rm $(CI_PROD) python -m map_relations ingest --help
+	docker run --rm $(CI_PROD) sh -c "test ! -e .github && test ! -e Makefile"
 
 # Gabarito (B02 §5 e §6). Sem caminho padrão para data/golden/: sempre explícito.
 # make gold-fill GOLD=data/golden/a.json OUT=data/golden/b.json

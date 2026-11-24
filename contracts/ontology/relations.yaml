@@ -139,14 +139,15 @@ types:
       schema_org: spouse
 
   - id: vinculo_amoroso_com
-    version: 1
+    version: 2
     status: active
     replaced_by: []
     label: "Vínculo amoroso com"
     definition: "Relação amorosa, sexual ou de amantes reconhecida de ambos os lados."
     when_to_use: >
       Quando o texto mostra ou afirma reciprocidade, mesmo episódica: amante
-      regular, noivado, encontro correspondido.
+      regular, noivado, encontro correspondido, interesse manifestado pelos dois
+      lados na mesma cena.
     when_not_to_use: >
       Não usar quando o desejo é de um lado só, recusado ou apenas insinuado:
       use interesse_amoroso_por. Não usar para beijo de cortesia, vocativo

@@ -30,6 +30,13 @@ TEXT = CANON.text
 HASH = CANON.source.content_hash
 
 
+def wrap(anchor: dict, **over) -> dict:
+    """Evidência do gabarito em torno de uma âncora (completa ou só com `exact`)."""
+    return {
+        "chapter": "1", "anchor": anchor, "support": "alto", "polarity": "apoia", **over,
+    }
+
+
 def gold_with(*evidence: dict, extra_relations: list[dict] | None = None) -> dict:
     rels = [
         {
@@ -40,7 +47,7 @@ def gold_with(*evidence: dict, extra_relations: list[dict] | None = None) -> dic
             "class": "afirmada",
             "narrative_scope": "obra",
             "origin": "humano",
-            "evidence": [ev],
+            "evidence": [wrap(ev)],
         }
         for i, ev in enumerate(evidence)
     ]
@@ -211,7 +218,27 @@ def test_fictional_relations_are_left_alone():
           "startOffset": 5, "endOffset": 22}
     fic = {**gold_with(ev)["relations"][0], "id": "f", "fictional": True}
     new, rep = fill_offsets(gold_with({"exact": "Ana vigiava Bruno"}, extra_relations=[fic]), CANON)
-    assert new is not None and new["relations"][-1]["evidence"][0] == ev
+    assert new is not None and new["relations"][-1]["evidence"][0]["anchor"] == ev
+
+
+def test_fill_only_touches_the_anchor_and_keeps_the_annotation():
+    data = gold_with({"exact": "Ana vigiava Bruno"})
+    data["relations"][0]["evidence"][0].update(support="medio", polarity="contradiz", note="n")
+    data["relations"][0]["provas_em_conjunto"] = "suficiente"
+    new, rep = fill_offsets(data, CANON)
+    assert rep.ok and new is not None
+    e = new["relations"][0]["evidence"][0]
+    got = (e["chapter"], e["support"], e["polarity"], e["note"])
+    assert got == ("1", "medio", "contradiz", "n")
+    assert e["anchor"]["startOffset"] == TEXT.index("Ana vigiava Bruno")
+    assert new["relations"][0]["provas_em_conjunto"] == "suficiente"
+
+
+def test_evidence_without_anchor_is_error():
+    data = gold_with({"exact": "Ana vigiava Bruno"})
+    del data["relations"][0]["evidence"][0]["anchor"]
+    new, rep = fill_offsets(data, CANON)
+    assert new is None and rep.outcomes[0].status == "erro"
 
 
 def test_relation_without_evidence_is_error():

@@ -114,7 +114,8 @@ def _where(canon: IngestResult, offset: int) -> str:
 def resolve_evidence(
     canon: IngestResult, relation: str, index: int, raw: dict[str, Any]
 ) -> tuple[EvidenceOutcome, dict[str, Any] | None]:
-    """Uma evidência: o resultado do relatório e a âncora nova (None se erro)."""
+    """Uma evidência: o resultado do relatório e a âncora nova (None se erro).
+    `raw` é a âncora (`evidence[j].anchor`), não a evidência inteira."""
     try:
         entry = AnchorInput.model_validate(raw)
     except ValidationError as exc:
@@ -182,11 +183,15 @@ def fill_offsets(
             report.errors.append(f"relação {label}: sem evidência (princípio 4)")
             continue
         for j, raw in enumerate(evidence):
-            entry = raw if isinstance(raw, dict) else {}
-            outcome, anchor = resolve_evidence(canon, label, j, entry)
+            # a evidência tem capítulo, suporte etc.; só `anchor` é refeito aqui
+            holder = raw if isinstance(raw, dict) else {}
+            entry = holder.get("anchor")
+            outcome, anchor = resolve_evidence(
+                canon, label, j, entry if isinstance(entry, dict) else {}
+            )
             report.outcomes.append(outcome)
             if anchor is not None:
-                evidence[j] = anchor
+                holder["anchor"] = anchor
     if not report.ok:
         return None, report
     source = out.setdefault("source", {})
