@@ -76,6 +76,24 @@ services:
     profiles:
       - mineru
 
+  docs:
+    # Site da documentação com o Zensical (make docs). Só com --profile docs;
+    # nunca no CI. Publicado apenas em 127.0.0.1:8020; o site gerado (./site/)
+    # está no .gitignore. Nada é publicado fora da máquina.
+    build:
+      context: docker/docs
+    image: maprelations-docs
+    user: "0:0"
+    command: zensical serve -a 0.0.0.0:8000
+    ports:
+      - "127.0.0.1:8020:8000"
+    volumes:
+      - ./docs:/project/docs:ro
+      - ./zensical.toml:/project/zensical.toml:ro
+      - ./site:/project/site
+    profiles:
+      - docs
+
   mlflow:
     # Rastreamento das avaliações (B02 §8, ADR 013). Só com --profile mlflow;
     # nunca no CI. Publicado apenas em 127.0.0.1:5010. Versão igual à do

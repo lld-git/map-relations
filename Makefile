@@ -12,7 +12,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: eval mlflow mlflow-stop test lint typecheck schema schema-check check ci ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed
+.PHONY: eval mlflow mlflow-stop test lint typecheck schema schema-check check ci ci-context ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed docs docs-stop docs-build
 
 test:
 	$(RUN) uv run pytest
@@ -38,19 +38,30 @@ check: lint typecheck schema-check test
 # Portão antes do commit de fechamento e do PR; `make check` é o ciclo rápido.
 # O contexto do build é o ÍNDICE do Git (git archive da árvore staged: o que o
 # checkout do CI veria, D8): o que não foi `git add`ado fica de fora, inclusive
-# modificações. Os testes rodam sem volumes e
+# modificações. O índice é extraído para uma pasta e o build usa a PASTA como
+# contexto, não um tar por stdin: só com pasta o Docker aplica o .dockerignore,
+# como no checkout do CI (um tar por stdin o ignora, e o `make ci` passou
+# enquanto o CI falhava em eval/reports/.gitkeep, excluído pelo .dockerignore).
+# Os testes rodam sem volumes e
 # sem `user: 0:0` (código assado na imagem, appuser), como no CI.
 # tests/test_ci_sync.py falha se as listas `docker run` daqui e do ci.yml
 # divergirem; a tag local da dev é maprelations-app (princípio 14).
 CI_DEV = maprelations-app
 CI_PROD = map-relations-prod
 CI_CONTEXT = git archive --format=tar $$(git write-tree)
+CI_DIR = /tmp/maprelations-ci-context
 
 ci: ci-test ci-prod
+	rm -rf /tmp/maprelations-ci-context
 	docker image prune -f
 
-ci-test:
-	$(CI_CONTEXT) | docker build --target dev -t $(CI_DEV) -
+ci-context:
+	rm -rf /tmp/maprelations-ci-context
+	mkdir -p $(CI_DIR)
+	$(CI_CONTEXT) | tar -x -C $(CI_DIR)
+
+ci-test: ci-context
+	docker build --target dev -t $(CI_DEV) $(CI_DIR)
 	docker run --rm $(CI_DEV) uv run ruff check .
 	docker run --rm $(CI_DEV) uv run mypy .
 	docker run --rm $(CI_DEV) uv run python -m scripts.generate_schemas --check
@@ -58,8 +69,8 @@ ci-test:
 	docker run --rm $(CI_DEV) uv run python -m scripts.generate_ontology --check
 	docker run --rm $(CI_DEV) uv run pytest
 
-ci-prod:
-	$(CI_CONTEXT) | docker build --target prod -t $(CI_PROD) -
+ci-prod: ci-context
+	docker build --target prod -t $(CI_PROD) $(CI_DIR)
 	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
 	docker run --rm $(CI_PROD) python -m map_relations ingest --help
 	docker run --rm $(CI_PROD) sh -c "test ! -e .github && test ! -e Makefile"
@@ -179,3 +190,17 @@ compare-all:
 # Lista pastas órfãs de data/processed/ (APPLY=1 remove de verdade)
 clean-processed:
 	$(RUN) python -m map_relations clean $(if $(APPLY),--apply,)
+
+# Site da documentação (Zensical), só local: http://127.0.0.1:8020 (CLAUDE.md).
+# make docs-build gera ./site/ (no .gitignore) e falha se a conversão falhar.
+docs:
+	mkdir -p site
+	$(COMPOSE) --profile docs up -d --build docs
+	@echo "Documentação em http://127.0.0.1:8020 (make docs-stop para parar)"
+
+docs-stop:
+	$(COMPOSE) --profile docs stop docs
+
+docs-build:
+	mkdir -p site
+	$(COMPOSE) --profile docs run --rm docs zensical build

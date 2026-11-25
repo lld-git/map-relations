@@ -1,0 +1,77 @@
+# Site da documentação (Zensical). Só local: `make docs` serve em 127.0.0.1:8020.
+# Nada é publicado. O site gerado (site/) está no .gitignore.
+# Novo arquivo em docs/adr, blocks ou plans: acrescentar à navegação abaixo.
+[project]
+site_name = "Mapa de Relações — documentação"
+site_description = "Documentação do projeto (uso local)"
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = true
+nav = [
+  { "Status" = "status.md" },
+  { "Arquitetura" = "architecture.md" },
+  { "ADRs" = [
+    "adr/001-cves-imagem-base.md",
+    "adr/002-docker-desktop-permissoes.md",
+    "adr/003-ids-estaveis.md",
+    "adr/004-offsets-nfc.md",
+    "adr/005-llm-assincrono.md",
+    "adr/006-transicoes-de-estado.md",
+    "adr/007-pacote-instalavel.md",
+    "adr/008-markdown-intermediario.md",
+    "adr/009-camada-comum-layout.md",
+    "adr/010-reconhecimento-mineru.md",
+    "adr/011-ontologia-de-relacoes.md",
+    "adr/012-gabarito-e-ancora.md",
+    "adr/013-mlflow-atras-de-runtracker.md",
+  ] },
+  { "Blocos" = [
+    "blocks/B00.md",
+    "blocks/B00b.md",
+    "blocks/B01.md",
+    "blocks/B01b.md",
+    "blocks/B02.md",
+    "blocks/B02a.md",
+    "blocks/B04-docs.md",
+    "blocks/B04-pkg.md",
+    "blocks/B04.md",
+    "blocks/B04b-prova.md",
+    "blocks/B04c.md",
+    "blocks/B04d.md",
+    "blocks/B04e.md",
+    "blocks/B04f.md",
+  ] },
+  { "Planos" = [
+    "plans/B02.md",
+    "plans/B02a.md",
+    "plans/B04d.md",
+  ] },
+  { "Mapa" = [
+    "mapa/fluxo.md",
+    "mapa/arquivos.md",
+  ] },
+]
+
+[project.theme]
+language = "pt"
+font = false  # sem Google Fonts: nenhuma requisição externa para fontes
+features = [
+  "content.code.copy",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.sections",
+  "navigation.top",
+  "search.highlight",
+]
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]

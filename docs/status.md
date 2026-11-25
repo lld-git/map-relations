@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-25 (B02 concluído, fases 0–5 e 7; pronto para mesclar)
+# Status — atualizado em 2026-11-25 (B02 mesclado no master; branch docs-site: site da documentação)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -174,6 +174,23 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   465 testes; `make check` e `make ci` verdes. A fase 6 (§9) saiu do bloco.
   Relatório: [docs/blocks/B02.md](blocks/B02.md).
 
+- **docs-site** — branch `docs-site`, a partir do master (B02 já mesclado), sem push.
+  (1) **`make ci` × CI:** o `make ci` passava porque o build lia o contexto por stdin
+  (`git archive | docker build -`) e o Docker **não aplica o .dockerignore a um tar por
+  stdin**; o CI usa o checkout, aplica, e o `.dockerignore` excluía `eval/reports/`
+  inteiro (falha em `test_reports_folder_is_tracked_only_through_gitkeep`, run
+  45700812203). Já corrigido no master (3410708); agora o `make ci` extrai o índice do Git
+  para `/tmp/maprelations-ci-context` e usa a pasta como contexto (alvo `ci-context`),
+  conferido: a imagem não tem mais `docs/`. Teste de regressão em `tests/test_ci_sync.py`.
+  (2) Seção B02b do CLAUDE.md reescrita (métricas, histórico e comparação no MLflow;
+  painel só com as cinco telas de domínio), com a aprovação do Leon. (3) Criados
+  [docs/blocks/B04f.md](blocks/B04f.md) e [docs/README.md](README.md). (4) Site com
+  Zensical 0.1.3: serviço `docs` (perfil `docs`, `docker/docs/Dockerfile`, imagem
+  `maprelations-docs`) em 127.0.0.1:8020, `make docs`/`docs-stop`/`docs-build`, `site/` no
+  .gitignore e no .dockerignore, navegação em `zensical.toml`. Diagramas Mermaid conferidos
+  em Chrome headless: aparecem, mas o Zensical os carrega de unpkg.com, então precisam de
+  internet (limitação registrada em docs/README.md). URLs locais no CLAUDE.md.
+
 ## Pendências
 
 - **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
@@ -207,8 +224,6 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   `processo.gold.json` (ainda não existe); só então `make eval` roda contra a obra real.
 - Bloco do capítulo de controle (§9 do plano do B02), a abrir depois da mesclagem do B02:
   `gold template`, `gold compare`, anotação do modelo para o cap. 5 e anotação às cegas do Leon.
-- Seção B02b do CLAUDE.md a reescrever na linha do §8 (MLflow cobre tabelas e comparação;
-  painel só com telas de domínio): aguarda a aprovação do Leon.
 - Medir o peso do `mlflow-skinny` na imagem dev (plano §14).
 - Limitação conhecida do pdf_loader: parágrafo que atravessa página sem hífen
   vira dois parágrafos; resolve-se com Docling no B04b.
@@ -230,6 +245,10 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 013 — MLflow atrás de `RunTracker`; endereço fora da máquina recusado.
 
 ## Handoff
+
+**docs-site (2026-11-25):** ver o bullet "docs-site" em Concluído. Falta só o Leon revisar e
+mesclar. O que segue abaixo (B02) continua valendo: bloco do §9 ainda por abrir, `processo.gold.json`
+ainda por gerar. Ao criar arquivo em docs/adr, blocks ou plans, acrescentar em `zensical.toml`.
 
 **B02 concluído** na branch `b02-gabarito` (sem push), nas fases 0 a 5 e 7 do plano
 ([docs/plans/B02.md](plans/B02.md)); relatório em [docs/blocks/B02.md](blocks/B02.md). 465
