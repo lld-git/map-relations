@@ -3,6 +3,8 @@
 
 COMPOSE = docker compose
 RUN = $(COMPOSE) run --rm app
+# `make eval RUN=<execução>` sobrescreve RUN na linha de comando; o alvo eval usa RUN_APP.
+RUN_APP = $(COMPOSE) run --rm app
 name = $(notdir $(PDF))
 stem = $(basename $(notdir $(PDF)))
 
@@ -10,7 +12,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: test lint typecheck schema schema-check check ingest map shell docling compare compare-all clean-processed
+.PHONY: eval mlflow mlflow-stop test lint typecheck schema schema-check check ci ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -31,6 +33,78 @@ schema-check:
 	$(RUN) uv run python -m scripts.generate_ontology --check
 
 check: lint typecheck schema-check test
+
+# ── make ci: reproduz os dois jobs de .github/workflows/ci.yml (B02 §2) ───────
+# Portão antes do commit de fechamento e do PR; `make check` é o ciclo rápido.
+# O contexto do build é o ÍNDICE do Git (git archive da árvore staged: o que o
+# checkout do CI veria, D8): o que não foi `git add`ado fica de fora, inclusive
+# modificações. Os testes rodam sem volumes e
+# sem `user: 0:0` (código assado na imagem, appuser), como no CI.
+# tests/test_ci_sync.py falha se as listas `docker run` daqui e do ci.yml
+# divergirem; a tag local da dev é maprelations-app (princípio 14).
+CI_DEV = maprelations-app
+CI_PROD = map-relations-prod
+CI_CONTEXT = git archive --format=tar $$(git write-tree)
+
+ci: ci-test ci-prod
+	docker image prune -f
+
+ci-test:
+	$(CI_CONTEXT) | docker build --target dev -t $(CI_DEV) -
+	docker run --rm $(CI_DEV) uv run ruff check .
+	docker run --rm $(CI_DEV) uv run mypy .
+	docker run --rm $(CI_DEV) uv run python -m scripts.generate_schemas --check
+	docker run --rm $(CI_DEV) uv run python -m map_relations ontology check
+	docker run --rm $(CI_DEV) uv run python -m scripts.generate_ontology --check
+	docker run --rm $(CI_DEV) uv run pytest
+
+ci-prod:
+	$(CI_CONTEXT) | docker build --target prod -t $(CI_PROD) -
+	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
+	docker run --rm $(CI_PROD) python -m map_relations ingest --help
+	docker run --rm $(CI_PROD) sh -c "test ! -e .github && test ! -e Makefile"
+
+# Avaliação (B02 §7) e MLflow (§8). Sem caminho padrão para data/golden/.
+# make eval RUN=eval/runs/x/run.json GOLD=data/golden/processo.gold.json [TRACK=1]
+# make mlflow   -> interface em http://127.0.0.1:5010 (dados em ./mlflow_data/)
+eval:
+ifndef RUN
+	$(error uso: make eval RUN=<execução> GOLD=<gabarito> [TRACK=1] [CANONICAL=<canonical.txt>])
+endif
+ifndef GOLD
+	$(error uso: make eval RUN=<execução> GOLD=<gabarito> [TRACK=1] [CANONICAL=<canonical.txt>])
+endif
+	$(RUN_APP) python -m map_relations eval --run $(RUN) --gold $(GOLD) $(if $(CANONICAL),--canonical $(CANONICAL)) $(if $(TRACK),--track)
+
+mlflow:
+	mkdir -p mlflow_data
+	$(COMPOSE) --profile mlflow up -d mlflow
+	@echo "MLflow em http://127.0.0.1:5010 (make mlflow-stop para parar)"
+
+mlflow-stop:
+	$(COMPOSE) --profile mlflow stop mlflow
+
+# Gabarito (B02 §5 e §6). Sem caminho padrão para data/golden/: sempre explícito.
+# make gold-fill GOLD=data/golden/a.json OUT=data/golden/b.json
+# make gold-convert DRAFT=data/golden/processo.json OUT=data/golden/processo.gold.json
+# make gold-validate GOLD=data/golden/processo.gold.json
+gold-fill:
+ifndef GOLD
+	$(error uso: make gold-fill GOLD=<arquivo> OUT=<arquivo novo>)
+endif
+	$(RUN) python -m map_relations gold fill-offsets --gold $(GOLD) --out $(OUT) $(if $(REPORT),--report $(REPORT))
+
+gold-convert:
+ifndef DRAFT
+	$(error uso: make gold-convert DRAFT=<rascunho> OUT=<arquivo novo>)
+endif
+	$(RUN) python -m map_relations gold convert-draft --draft $(DRAFT) --out $(OUT) $(if $(REPORT),--report $(REPORT))
+
+gold-validate:
+ifndef GOLD
+	$(error uso: make gold-validate GOLD=<arquivo>)
+endif
+	$(RUN) python -m map_relations gold validate --gold $(GOLD)
 
 # Uso: make ingest PDF=livro.pdf  (o arquivo deve estar em data/raw/).
 # Para PDF a rota padrão é o Docling; sem cache (exit 3), roda o serviço e repete.

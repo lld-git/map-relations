@@ -2,7 +2,7 @@
 
 Uma seção por fase e checkpoint: objetivo, métricas, observações e
 aprendizados. Só métricas que existem de verdade; sem números inventados.
-Atualizado em 2026-11-21.
+Atualizado em 2026-11-25.
 
 ## B00 — Fundação (concluído em 2026-11-05)
 
@@ -167,6 +167,28 @@ protegida fica em `data/golden/`, fora do Git.
 
 **Aprendizados:** `ids` precisa importar `RelationType` só para tipagem
 (`TYPE_CHECKING`), porque `models` já importa `ids`.
+
+## B02 — Gabarito, avaliação e MLflow (concluído em 2026-11-25)
+
+**Objetivo:** gabarito com evidências ancoradas por citação e contexto, avaliação com
+duas medidas (estrita e relaxada) e registro das execuções num MLflow local, tudo
+verificável sem expor a obra protegida.
+
+**Métricas:** 465 testes na conclusão (195 novos desde o B02a); `make check` e `make ci`
+verdes. Cenário sintético do `eval` com 15 claims e 7 relações de gabarito: estrita
+P 3/11, R 3/5, F1 0,375; relaxada P 4/11, R 4/5, F1 0,5; família (relaxada) F1 0,625;
+atribuição correta 2/4; prova em 3/4 dos acertos relaxados; 1 violação em 2 pares de
+controle. Uma execução sintética registrada no MLflow local (127.0.0.1:5010).
+
+**Observações:** só relações provadas entram como positivos; a prova é medida à parte
+da relação; `texto_encaixado` sai das métricas principais; o §9 (capítulo de controle)
+saiu do B02 e virou bloco próprio; `processo.gold.json` ainda não existe (depende do
+Leon). Pesos e corte da prova em conjunto seguem provisórios, a calibrar no B03.
+
+**Aprendizados:** o MLflow 3.x bloqueia o armazenamento em `file://` por padrão; a
+palavra `databricks`, sem esquema, parece caminho local e é serviço remoto, então o
+recusador de endereços trata as palavras reservadas; `make eval RUN=…` sobrescreve a
+variável `RUN` do Makefile, por isso o alvo usa `RUN_APP`.
 
 ## Checkpoint C1 — comparativo A/B/C (não iniciado)
 

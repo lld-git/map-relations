@@ -11,7 +11,8 @@ dist/
 
 # Git
 .git/
-.github/
+# .github/ e Makefile entram no contexto: só o estágio dev os usa (test_ci_sync);
+# o prod os descarta no estágio ctx do Dockerfile (B02 §2)
 
 # Data e saídas de execução (montados como volumes)
 data/
@@ -29,3 +30,4 @@ docs/
 .idea/
 golden_scripts/
 data/golden/
+mlflow_data/

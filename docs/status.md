@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-21 (B02a concluído)
+# Status — atualizado em 2026-11-25 (B02 concluído, fases 0–5 e 7; pronto para mesclar)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -164,6 +164,16 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   sessão; `docker image prune -f` e `docker builder prune -f` liberaram
   o suficiente para a imagem `dev` reconstruir).
 
+- **B02** — gabarito, avaliação e MLflow, branch `b02-gabarito` (sem push). Fases 0 a 3 e a
+  revisão do formato: `make ci`, `GoldFile`/âncora/`validate_gold`, `gold fill-offsets`,
+  `gold convert-draft` (ADR 012). Fases 4 e 5 (2026-11-25): `RunFile`; `eval` com medida
+  estrita e relaxada, linha de atribuição, acerto no tipo pai, pares de controle, texto
+  encaixado à parte e prova medida à parte da relação; `RunTracker` com `NullTracker` e
+  `MlflowTracker`, serviço `mlflow` em 127.0.0.1:5010 com dados em `./mlflow_data/`, recusa
+  de endereço fora da máquina (ADR 013). `eval/reports/*` e `mlflow_data/` fora do Git.
+  465 testes; `make check` e `make ci` verdes. A fase 6 (§9) saiu do bloco.
+  Relatório: [docs/blocks/B02.md](blocks/B02.md).
+
 ## Pendências
 
 - **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
@@ -193,7 +203,13 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - Criar repositório remoto no GitHub (map-relations) — aguardando a conta do Leon.
 - Resto do B04: leitura de TXT e EPUB; migrar url_loader ao contrato
   IngestResult (hoje é o único candidato real em codigo_morto.txt).
-- B02: gabarito em `data/golden/processo.json` (fora do Git) e comando eval.
+- B02 (Leon): resolver a relação #3 do rascunho (D4), rodar `make gold-convert` e conferir
+  `processo.gold.json` (ainda não existe); só então `make eval` roda contra a obra real.
+- Bloco do capítulo de controle (§9 do plano do B02), a abrir depois da mesclagem do B02:
+  `gold template`, `gold compare`, anotação do modelo para o cap. 5 e anotação às cegas do Leon.
+- Seção B02b do CLAUDE.md a reescrever na linha do §8 (MLflow cobre tabelas e comparação;
+  painel só com telas de domínio): aguarda a aprovação do Leon.
+- Medir o peso do `mlflow-skinny` na imagem dev (plano §14).
 - Limitação conhecida do pdf_loader: parágrafo que atravessa página sem hífen
   vira dois parágrafos; resolve-se com Docling no B04b.
 
@@ -210,8 +226,47 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 009 — B04d: camada comum de layout entre conversores (Opção B).
 - ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
 - ADR 011 — Ontologia de relações versionada; `claim_key` pelo RelationType; `alegada`.
+- ADR 012 — Formato do gabarito, âncora de evidência e leitura do gabarito pelo `eval`.
+- ADR 013 — MLflow atrás de `RunTracker`; endereço fora da máquina recusado.
 
 ## Handoff
+
+**B02 concluído** na branch `b02-gabarito` (sem push), nas fases 0 a 5 e 7 do plano
+([docs/plans/B02.md](plans/B02.md)); relatório em [docs/blocks/B02.md](blocks/B02.md). 465
+testes; `make check` e `make ci` verdes.
+
+**Decisão sobre o fluxo (Leon):** depois do commit de fechamento, o **B02 é mesclado no master**
+e o **§9 vira um bloco separado** (capítulo de controle: `gold template`, `gold compare`,
+anotação do modelo para o cap. 5 e anotação às cegas do Leon; a fase 6 saiu do B02). Esse
+bloco novo abre numa branch própria a partir do master já com o B02, e ainda precisa de
+nome, de plano e de definir quem gera a anotação do modelo para o cap. 5.
+
+**O que ficou pronto nas fases 4 e 5:**
+- `eval --run <RunFile> --gold <gabarito> [--canonical …] [--track]` / `make eval RUN=… GOLD=…
+  [CANONICAL=…] [TRACK=1]`. Medida estrita (com `asserted_by`) e relaxada (sem `asserted_by`
+  nem classe); linha de atribuição; acerto no tipo pai; pares de controle; texto encaixado à
+  parte; prova medida à parte da relação (evidência do extrator sobrepõe a do gabarito ou cobre
+  o conjunto declarado). Só relações provadas são positivos; as sem prova são ignoradas.
+  Relatório em `eval/reports/<run_id>/` (fora do Git); código de saída 0 ou 2.
+- MLflow: `make mlflow` (http://127.0.0.1:5010, dados em `./mlflow_data/`), `make mlflow-stop`;
+  `RunTracker` recusa endereço fora da máquina; só números e ids vão ao servidor, o relatório
+  vai como artefato. Execução sintética registrada e conferida na API do servidor.
+
+**Antes de mesclar / depois de mesclar:**
+1. Revisão humana de `docs/blocks/B02.md` (seção "Revisão humana" vazia).
+2. Leon: resolver a relação #3 do rascunho (D4, `prefix`), `make gold-convert`, conferir
+   `processo.gold.json` (`narrative_scope = obra`, regra do cabeçalho/rodapé, `make
+   gold-validate`). Sem isso o `eval` não roda contra a obra real.
+3. Aprovação para reescrever a seção B02b do CLAUDE.md na linha do §8 (não editada).
+4. Abrir o bloco do §9. Calibrar pesos e corte da prova em conjunto no B03 (ADR 012).
+
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§9 e §10 para o próximo
+bloco); `make check` verde. `make ci` exige `git add` antes (o contexto é o índice).
+`docs/arquitetura_sugest.md` continua não versionado (não é deste bloco). Uma execução
+sintética de teste ficou em `eval/runs/sintetica/` e `eval/reports/sintetica-01/`, ambos
+ignorados pelo Git; pode apagar.
+
+### Handoff anterior (B02a e sessões 1 a 3a do B02)
 
 **B02a concluído** (branch `b02a-ontologia`, sem push; relatório em
 [docs/blocks/B02a.md](blocks/B02a.md)). Além da parte da ontologia (YAML, `Ontology`,
@@ -221,12 +276,84 @@ narrative_scope)`, `rules.new_claim`, `ClaimClass.alegada`, `Claim.asserted_by` 
 `vigia` virou `exerce_vigilancia_sobre` (trava regenerada do zero, ainda não
 publicada). 270 testes; `make check` e os dois jobs do CI verdes.
 
-**Próximo passo: B02** — gabarito em `data/golden/processo.json` (fora do Git;
-converter `"version": "1.0.0"` e `asserted_by` por nome para os ids da ontologia e
-das entidades), reescrever `build_gold.py` no pacote, validar o gabarito contra
-a ontologia e criar `eval --run <arquivo> --gold <arquivo>`. A V1 avalia só
-`narrative_scope = obra`; `texto_encaixado` é excluído dos dois lados e contado
-à parte.
+**Plano do B02 aprovado** em [docs/plans/B02.md](plans/B02.md) (2026-11-21),
+com D1–D9 fechadas. Destaques: 38 dos 40 offsets do rascunho estão velhos
+(hash do canônico mudou), e o fill-offsets vem antes de tudo. A avaliação tem
+duas medidas, estrita (com `asserted_by`) e relaxada (sem `asserted_by` nem
+classe). O capítulo de controle é o cap. 5, que exige uma anotação do modelo
+para esse capítulo, ainda sem responsável definido.
+
+**B02 em andamento** na branch `b02-gabarito` (a partir do master `2fbe888`, sem
+push; o plano previa `b02-avaliacao`, o nome foi trocado por decisão do Leon).
+Feitas as fases 0 a 3 do plano (§2 a §6); as fases 2 e 3 num só commit:
+- **Fase 0 — `make ci`:** `ci-test` e `ci-prod` espelham os dois jobs do
+  `ci.yml` (sem volumes, `appuser`); `tests/test_ci_sync.py` falha se os `docker
+  run` ou o `target` divergirem. Desvio do plano: o contexto do build é
+  `git archive $(git write-tree)` (o índice de verdade), não `git ls-files | tar`,
+  que empacotava a árvore de trabalho e deixou vazar uma modificação não staged.
+  Consequência: `git add` antes de `make ci`. `.github/` saiu do `.dockerignore` e
+  Makefile/.github entram como volumes `:ro` para o teste rodar no `make check`.
+- **Fase 1 — gabarito:** `evaluation/gold.py` (`GoldFile`, `Anchor` com exact,
+  prefix, suffix, startOffset e endOffset, `check_anchor`, `validate_gold`,
+  `relation_id`), `contracts/schemas/gold.schema.json` gerado e conferido no
+  `generate_schemas --check` (CI), ADR 012, 51 testes novos (um por regra do §3).
+
+- **Fase 2 — fill-offsets (§5):** `evaluation/anchoring.py` (`resolve_anchor`:
+  1 ocorrência aceita; várias filtram só por `prefix`/`suffix` gravados; offset
+  antigo, ordinal e casamento aproximado nunca decidem; contexto de 32 que cresce
+  até 128 sem cortar palavra), `evaluation/fill_offsets.py` (tudo ou nada, modo âncora
+  mínima, relatório sem texto da obra), subcomandos `gold fill-offsets` e
+  `gold validate` (pendência da fase 1 resolvida), `make gold-fill`/`gold-validate`.
+- **Fase 3 — conversão (§6):** `evaluation/convert_draft.py`, `gold convert-draft`,
+  `make gold-convert`. O relatório da citação ambígua mostra só `cap. X, § Y` e até
+  5 palavras de cada lado, nunca a citação. Desvio do plano: o rascunho aceita as
+  chaves opcionais `prefix`/`suffix` por relação, que é o canal da decisão D4.
+  42 testes novos (370 no total).
+  **Rodada real sobre o canônico atual (hash `7a25…`): 38 relações convertidas, 1 com
+  erro (ambígua, a relação #3 do rascunho, 2 ocorrências no cap. 1, § 24 e § 51).
+  `processo.gold.json` NÃO foi gerado (tudo ou nada).** O rascunho tem 39 relações
+  (o plano dizia 40). Relatório JSON em `data/golden/processo.convert-report.json`.
+
+**Revisão do formato (2026-11-24, mesma branch, 1 commit depois das fases 2 e 3):**
+- **Evidências** (ADR 012): `evidence` é lista de 1+ itens `{chapter, anchor, support
+  (alto|medio|baixo), polarity (apoia|contradiz), note?}`; `anchor.exact` obrigatório,
+  o resto da âncora vem do fill-offsets (que agora refaz só `evidence[j].anchor`).
+  Provada = evidência alta que apoia **ou** `provas_em_conjunto: suficiente`. O peso
+  (alto=3, medio=2, baixo=1; só das que apoiam) não decide: só gera alerta se o conjunto
+  foi declarado suficiente e a soma fica abaixo do corte (4). **Pesos e corte são
+  provisórios, a calibrar no B03.** Nada calculado é gravado (sem `quote`,
+  `support_profile`, `support_weight`, `prova_status`, `also_in_chapters`; `extra=forbid`
+  os rejeita); os valores saem em `GoldReport.proofs` e no `gold validate`.
+  `chapter` é conferido contra `locate()`. A conversão cria 1 evidência alta que apoia
+  por relação. Esses campos calculados nunca existiram no código; o que mudou foi o
+  formato de `evidence`.
+- **Nomes → ids:** já era assim na conversão (casamento exato por `preferredName`/alias,
+  desconhecido ou ambíguo = erro listado, id = slug do `preferredName`, colisão = erro);
+  ganhou testes (mesmo id em qualquer capítulo/execução, sem casamento aproximado).
+- **Ontologia:** `when_to_use` de `vinculo_amoroso_com` ganhou "interesse manifestado
+  pelos dois lados na mesma cena". A trava exigiu subir `version` desse tipo (1 → 2)
+  porque o conteúdo mudou; nenhum id mudou e o hash `semantic` ficou igual. Regenerado
+  com `make schema` (generate_ontology).
+- **Imagem prod:** confirmado que continha `.github/` e `Makefile` (o `COPY . .` do
+  B02 fase 0). Agora o Dockerfile tem o estágio descartável `ctx` que os remove e o
+  `prod` copia dele (nenhuma camada do prod os tem); o `dev` os recebe por `COPY`
+  próprio (o `test_ci_sync` precisa). Passo novo no `ci.yml` e no `make ci-prod`:
+  `test ! -e .github && test ! -e Makefile` na imagem prod.
+
+**Decisão sobre o fluxo do bloco:** depois deste commit, o B02 é mesclado no master e
+o §9 (capítulo de controle: `gold template`, `gold compare`, anotação do modelo e do
+Leon para o cap. 5) vira um **bloco separado**. Ficam no B02: fases 4 (§7), 5 (§8) e 7.
+A fase 6 sai.
+
+**Próximo passo exato: sessão 3b — §7 (avaliação) e §8 (MLflow).** Fase 4: `RunFile`,
+alinhamento, casamento (estrito e relaxado), métricas e `eval`; fase 5: `RunTracker`,
+`MlflowTracker`, serviço `mlflow`, ADR 013. Atenção ao novo formato: só relações
+**provadas** (`GoldReport.proofs`) devem entrar como gabarito positivo do `eval`, e
+evidências `contradiz` não contam como prova. Antes: o Leon ajusta o rascunho, resolve a
+relação #3 (D4, `prefix`) e roda `make gold-convert` para gerar `processo.gold.json`
+(ainda não existe); conferir (a) `narrative_scope = obra`, (b) a regra do
+cabeçalho/rodapé em `annotation_rules`, (c) `make gold-validate GOLD=…`. A sessão 3b
+não precisa do gabarito real: usa fixtures sintéticas.
 
 **Pontos abertos:** (a) a trava protege só a parte semântica dos abstratos (não têm
 `version`); a visão inversa herda o `version` do dono. (b) Erros estruturais do YAML
@@ -235,7 +362,8 @@ param antes das regras semânticas; os demais saem juntos. (c) `age_em_nome_de` 
 exige montar o diretório (`docker run -v "$PWD":/work -w /work maprelations-app uv
 lock`). (e) Regra do verificador para `alegada`: B05.
 
-**Como retomar:** ler CLAUDE.md, este arquivo e docs/blocks/B02a.md; `make check` verde.
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§7, §8 e §11); `make check` verde.
+`docs/arquitetura_sugest.md` continua não versionado (não é deste bloco).
 
 ---
 

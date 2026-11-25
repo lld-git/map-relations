@@ -17,6 +17,7 @@ planejado. O único diagrama de fluxo do projeto está em
 | Armazenamento | `research/map_relations/ingest/store.py` | layout `data/processed/<hash>/`, cache Docling, órfãs | O nome da pasta usa o hash do arquivo de origem |
 | CLI | `research/map_relations/__main__.py` | ingest, prepare, compare, clean | Só orquestra; sem lógica de domínio |
 | Ontologia | `contracts/ontology/`, `core/ontology*.py`, `ontology_io.py` | `relations.yaml` (fonte) → `Ontology`, trava de ids e artefatos gerados | Modelos puros em `core`; leitura de YAML só em `ontology_io` (ADR 011) |
+| Gabarito | `research/map_relations/evaluation/gold.py`, `contracts/schemas/gold.schema.json` | `GoldFile`, `GoldEvidence` (capítulo, âncora, suporte, polaridade, nota; prova calculada só no relatório), `Anchor` (exact/prefix/suffix + offsets) e `validate_gold` contra ontologia e canônico; `anchoring.py`/`fill_offsets.py` (âncora sem chute, tudo ou nada), `convert_draft.py` e os subcomandos `gold ...` (`gold_cli.py`) | Fora do domínio; o gabarito real vive em `data/golden/`, fora do Git (ADR 012) |
 | Scripts | `scripts/` | Geração/verificação de schemas e da ontologia | Rodam só em Docker |
 | Testes | `tests/` | pytest, tudo em Docker | Não importam fornecedores diretamente |
 
@@ -77,6 +78,22 @@ canônico e invalida offsets registrados.
 - `DocumentParser` — `parse(path) -> IngestResult`. Implementado por
   `PdfParser`; DoclingParser planejado (B04b).
 - `ProjectStore` — persistência; sem implementação ainda (planejado).
+- `RunTracker` — registro das execuções de avaliação (`start`, `log_params`,
+  `log_metrics`, `log_artifact`, `set_tags`, `end`). Adaptadores `NullTracker`
+  (padrão) e `MlflowTracker`; `check_local_tracking_uri` recusa endereço fora da
+  máquina ([ADR 013](adr/013-mlflow-atras-de-runtracker.md)).
+
+### Avaliação (`evaluation/`)
+
+`python -m map_relations eval --run <RunFile> --gold <gabarito>` lê o gabarito
+([ADR 012](adr/012-gabarito-e-ancora.md)) e uma execução (`RunFile`, schema em
+`contracts/schemas/run.schema.json`), alinha pessoas por nome ou alias, casa as
+claims em duas medidas (estrita e relaxada) e grava `report.json` e `report.md` em
+`eval/reports/<run_id>/` (fora do Git). Com `--track`, registra os números no
+MLflow local. Código de saída 0 com relatório e 2 com gabarito, execução ou
+endereço inválidos. Módulos: `run_file` (formato), `matching` (alinhamento e
+casamento), `evaluate` (métricas), `report` (métricas planas e Markdown),
+`eval_cli`; a camada de rastreamento fica em `tracking/`.
 
 ## Componentes (nível de módulo)
 
@@ -91,6 +108,18 @@ flowchart BT
         protocols["core.protocols"]
         ontology["core.ontology"]
         lock["core.ontology_lock"]
+    end
+    subgraph evaluation
+        gold["evaluation.gold"]
+        runfile["evaluation.run_file"]
+        matching["evaluation.matching"]
+        evaluate["evaluation.evaluate"]
+        report["evaluation.report"]
+        evalcli["evaluation.eval_cli"]
+    end
+    subgraph tracking
+        nulltr["tracking.null_tracker"]
+        mlflowtr["tracking.mlflow_tracker"]
     end
     ontoio["ontology_io"]
     genonto["scripts.generate_ontology"]
@@ -126,6 +155,19 @@ flowchart BT
     genonto --> ontoio
     genonto --> lock
     cli --> ontoio
+    cli --> evalcli
+    matching --> gold
+    matching --> runfile
+    matching --> ontology
+    evaluate --> matching
+    evaluate --> gold
+    report --> matching
+    evalcli --> evaluate
+    evalcli --> report
+    evalcli --> nulltr
+    evalcli --> protocols
+    evalcli -.-> mlflowtr
+    mlflowtr --> protocols
     protocols --> contract
     document --> ids
     document --> models
@@ -186,3 +228,4 @@ papel e status está em [docs/mapa/arquivos.md](mapa/arquivos.md).
 | [009](adr/009-camada-comum-layout.md) | Opção B do B04d: camada comum de layout (`LayoutItem`) entre conversores |
 | [010](adr/010-reconhecimento-mineru.md) | Reconhecimento do MinerU Basic: campos reais, licença, custo — sem adaptador |
 | [011](adr/011-ontologia-de-relacoes.md) | Ontologia de relações versionada; `claim_key` pelo RelationType; classe `alegada`; `narrative_scope` |
+| [012](adr/012-gabarito-e-ancora.md) | Formato do gabarito e âncora de evidência (citação + contexto + posição) |

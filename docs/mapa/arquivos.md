@@ -1,6 +1,6 @@
 # Mapa de arquivos .py
 
-Atualizado em 2026-11-21, após o B02a (ontologia de relações). Status possíveis:
+Atualizado em 2026-11-25, após o B02 (gabarito, avaliação e MLflow). Status possíveis:
 **ativo** (no fluxo de execução), **só teste** (usado apenas por testes, em
 geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 **morto?** (candidato a remoção — conferir codigo_morto.txt).
@@ -11,12 +11,24 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | research/map_relations/core/ids.py | UUIDs, NFC e chaves de conteúdo (claim_key lê a simetria do RelationType; asserted_by/narrative_scope na chave) | core/models, core/ingest_contract, ingest/document, ingest/canonical; testes | ativo |
 | research/map_relations/core/models.py | 15 modelos Pydantic do domínio + enums | core/ingest_contract, core/rules, core/states, ingest/canonical, scripts/generate_schemas; testes | ativo |
 | research/map_relations/core/ingest_contract.py | IngestResult, Paragraph, locate() | core/protocols, ingest/canonical, ingest/pdf_loader, ingest/report; testes | ativo |
-| research/map_relations/core/protocols.py | Protocols: LlmEngine, SourceConnector, DocumentParser, ProjectStore; erros do motor | tests/test_contracts, tests/test_ingest_contract | só teste (contrato para B03+) |
+| research/map_relations/core/protocols.py | Protocols: LlmEngine, SourceConnector, DocumentParser, ProjectStore, RunTracker (+ `check_local_tracking_uri`); erros do motor | tests/test_contracts, tests/test_ingest_contract | só teste (contrato para B03+) |
 | research/map_relations/core/states.py | Tabela de transições do ADR 006 | core/rules; tests/test_states | ativo |
 | research/map_relations/core/rules.py | validate_claim_kinds, new_claim (único caminho de criação de claim), transition com ChangeLog | tests/test_rules | só teste (entra no pipeline em B05/B07) |
 | research/map_relations/core/ontology.py | modelos do YAML, build_ontology (junta todos os erros), canonicalize, ancestors/family, disjoint_conflicts, relation_types | core/rules, core/ontology_lock, ontology_io, scripts/generate_ontology; tests/test_ontology | ativo |
 | research/map_relations/core/ontology_lock.py | trava de ids (relations.lock.json), sem I/O | scripts/generate_ontology; tests/test_ontology | ativo |
 | research/map_relations/ontology_io.py | load_ontology: YAML seguro com rejeição de chave duplicada | \_\_main\_\_ (`ontology check`), scripts/generate_ontology; tests/test_ontology_io | ativo |
+| research/map_relations/evaluation/gold.py | `GoldFile`, `Anchor`, `relation_proof`, `validate_gold` (regras do §3 que precisam de contexto) | evaluation/\*, scripts/generate_schemas; testes | ativo |
+| research/map_relations/evaluation/anchoring.py | `resolve_anchor`: âncora por citação + contexto, nunca por offset antigo | evaluation/fill_offsets, evaluation/convert_draft; testes | ativo |
+| research/map_relations/evaluation/fill_offsets.py | `gold fill-offsets`: tudo ou nada, relatório sem texto da obra | evaluation/gold_cli, evaluation/eval_cli; testes | ativo |
+| research/map_relations/evaluation/convert_draft.py | `gold convert-draft`: conversão de uso único do rascunho | evaluation/gold_cli; testes | ativo |
+| research/map_relations/evaluation/gold_cli.py | subcomandos `gold fill-offsets`, `convert-draft`, `validate` | \_\_main\_\_ | ativo |
+| research/map_relations/evaluation/run_file.py | `RunFile`: formato da execução avaliada (B03 passa a emiti-lo) | evaluation/matching, evaluation/evaluate, eval_cli, scripts/generate_schemas; testes | ativo |
+| research/map_relations/evaluation/matching.py | alinhamento por nome/alias, chaves estrita e relaxada, casamento exato e no tipo pai | evaluation/evaluate; testes | ativo |
+| research/map_relations/evaluation/evaluate.py | métricas: tipo, família, atribuição, classe, nível/lente, prova, pessoas, controle, encaixado, alertas | evaluation/eval_cli; testes | ativo |
+| research/map_relations/evaluation/report.py | métricas planas (nomes estáveis) e `report.md` | evaluation/eval_cli; testes | ativo |
+| research/map_relations/evaluation/eval_cli.py | `eval --run --gold [--track]`; código 0 ou 2 | \_\_main\_\_; testes | ativo |
+| research/map_relations/tracking/null_tracker.py | `NullTracker`, o `RunTracker` padrão | evaluation/eval_cli; testes | ativo |
+| research/map_relations/tracking/mlflow_tracker.py | `MlflowTracker` (`mlflow-skinny`, import local; recusa endereço fora da máquina) | evaluation/eval_cli (só com `--track`); testes | ativo |
 | research/map_relations/ingest/document.py | compute_text_hash; re-exporta Source | ingest/markdown, ingest/url_loader; tests/test_ingest | ativo |
 | research/map_relations/ingest/markdown.py | convenção do .md, escape, render e parser único (ADR 008) | canonical, convert_*, \_\_main\_\_; tests/test_markdown | ativo |
 | research/map_relations/ingest/layout.py | camada comum (ADR 009): LayoutItem/BBox, join_crossing_items, classify_titles, drop_page_furniture, compute_body_band/apply_body_band | canonical, convert_docling, convert_txt, docling_compare; tests/test_layout, test_layout_band | ativo |
@@ -55,6 +67,10 @@ geral contrato aguardando bloco futuro), **só script** (ferramenta de apoio),
 | tests/test_ontology.py | carregador, validação, canonicalize, conflitos, trava, geração | — | teste |
 | tests/test_ontology_io.py | YAML: chave duplicada, arquivo real | — | teste |
 | tests/test_states.py | todos os 5×5×2 pares de transição | — | teste |
+| tests/eval_helpers.py | cenário sintético do `eval` (canônico, gabarito e execução inventados) | tests/test_eval, tests/test_tracking | teste |
+| tests/test_eval.py | métricas esperadas à mão: estrita, relaxada, pai, atribuição, prova, controle, encaixado, CLI | — | teste |
+| tests/test_tracking.py | `RunTracker`: endereços aceitos e recusados, nada da obra em params/tags, adaptador em `file://` | — | teste |
+| tests/test_mlflow_config.py | porta 127.0.0.1:5010, versão fixa igual à do cliente, pastas ignoradas pelo Git | — | teste |
 
 Cruzamento com codigo_morto.txt (vulture, confiança ≥ 60%): os itens
 apontados são contratos/utilitários exercitados só em testes (locate,

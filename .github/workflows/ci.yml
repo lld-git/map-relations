@@ -43,3 +43,4 @@ jobs:
           cache-to: type=gha,mode=max
       - run: docker run --rm map-relations-prod python -c "import map_relations.core.models"
       - run: docker run --rm map-relations-prod python -m map_relations ingest --help
+      - run: docker run --rm map-relations-prod sh -c "test ! -e .github && test ! -e Makefile"
