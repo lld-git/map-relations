@@ -92,7 +92,7 @@ def test_make_ci_prod_tag_matches_workflow():
 
 
 def test_make_ci_runs_both_jobs_then_prunes():
-    assert _recipe("ci") == ["docker image prune -f"]
+    assert _recipe("ci")[-1] == "docker image prune -f"
     lines = MAKEFILE.read_text(encoding="utf-8").splitlines()
     assert next(line for line in lines if line.startswith("ci:")).split() == [
         "ci:",
@@ -104,7 +104,19 @@ def test_make_ci_runs_both_jobs_then_prunes():
 def test_make_ci_context_is_git_index_without_volumes():
     for target in ("ci-test", "ci-prod"):
         recipe = _recipe(target)
-        assert recipe[0].startswith("$(CI_CONTEXT) | docker build")
+        assert recipe[0].startswith("docker build")
         assert not any(" -v " in line or "--user" in line or " -u " in line for line in recipe)
     context = re.search(r"^CI_CONTEXT = (.+)$", MAKEFILE.read_text(encoding="utf-8"), re.M)
     assert context and context.group(1).startswith("git archive")
+
+
+def test_make_ci_build_context_is_a_folder_so_dockerignore_applies():
+    """Tar por stdin ignora o .dockerignore; o CI (checkout) o aplica. Regressão do
+    eval/reports/.gitkeep: o `make ci` passou e o CI falhou."""
+    lines = MAKEFILE.read_text(encoding="utf-8").splitlines()
+    for target in ("ci-test", "ci-prod"):
+        build = next(line for line in _recipe(target) if line.startswith("docker build"))
+        assert build.endswith("$(CI_DIR)"), build
+        header = next(line for line in lines if line.startswith(f"{target}:"))
+        assert "ci-context" in header
+    assert any("tar -x -C $(CI_DIR)" in line for line in _recipe("ci-context"))

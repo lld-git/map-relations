@@ -181,7 +181,15 @@ Comparar relações depois de normalizar nomes por alias.
 Pronto quando: testes com saídas sintéticas produzem as métricas esperadas.
 
 ### B02b: painel de testes
-Implementar o painel de testes em research/map_relations/painel.
+Métricas, histórico e comparação entre execuções são do MLflow (B02 §8, ADR 013);
+o painel não repete tabelas de métricas. O painel fica só com as cinco telas de domínio:
+1. leitor da execução, com as evidências destacadas no texto e `locate()`;
+2. execução × gabarito por par (acerto exato, acerto no tipo pai, falso positivo,
+   falso negativo);
+3. pares de controle violados;
+4. texto encaixado;
+5. revisão gravada em eval/reviews/<run_id>.jsonl.
+Implementar em research/map_relations/painel.
 Stack: FastAPI, Jinja2, HTMX, Tailwind e daisyUI, com assets locais e sem build.
 Rodar no serviço painel do Docker Compose, publicado só em 127.0.0.1:8010.
 Ler somente eval/runs, eval/reports, eval/reviews e o texto em data/raw.
@@ -189,7 +197,6 @@ O painel nunca escreve em eval/gold nem em contracts.
 A única escrita permitida é a revisão em eval/reviews/<run_id>.jsonl.
 Escapar todo texto vindo de documentos ou modelos.
 Execução sem arquivos deve mostrar estado vazio claro, não erro.
-Começar só por P0 e P1: contrato + arquivos + execução fictícia em eval/examples.
 Pronto quando: execução fictícia abre no painel, sem acesso a escrever o gabarito.
 
 ### B03: motor e tarefas
@@ -200,6 +207,12 @@ versionado em contracts/prompts.
 Documentar suporte a JSON Schema por capacidade, com fallback para JSON simples.
 Chaves vêm apenas de variáveis de ambiente locais; nunca as registrar em log.
 Pronto quando: testes usam servidor falso e um comando manual chama dois provedores.
+
+## URLs locais
+Todas só em 127.0.0.1 (nada é publicado):
+- Painel de testes: http://127.0.0.1:8010 (`docker compose up painel`)
+- MLflow: http://127.0.0.1:5010 (`make mlflow`; `make mlflow-stop` para parar)
+- Documentação: http://127.0.0.1:8020 (`make docs`; `make docs-stop` para parar)
 
 ## Material de demonstração
 Obra de teste interna, fornecida pelo humano em data/raw/ e nunca versionada.

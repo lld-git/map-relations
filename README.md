@@ -105,6 +105,7 @@ All targets run inside the container via `docker compose`.
 | `make gold-validate GOLD=<file>` | `gold validate`: checks a gold file against the ontology and the current canonical text |
 | `make eval RUN=<run.json> GOLD=<gold.json> [CANONICAL=<canonical.txt>] [TRACK=1]` | `eval`: scores a run against the gold file (strict and relaxed measures, attribution, parent-type hits, control pairs, embedded text) → `eval/reports/<run_id>/report.{json,md}` (git-ignored). `TRACK=1` also logs numbers to MLflow. No default path to `data/golden/` |
 | `make mlflow` / `make mlflow-stop` | starts/stops the local MLflow server (`http://127.0.0.1:5010`, data in `./mlflow_data/`, git-ignored); the tracker refuses any address outside this machine |
+| `make docs` / `make docs-stop` / `make docs-build` | local documentation site (Zensical) at `http://127.0.0.1:8020`; `docs-build` writes the git-ignored `site/` and fails on conversion errors. Mermaid diagrams need internet access (loaded from unpkg.com) |
 | `make map` | generates `docs/mapa/imports.svg` (pydeps) and `docs/mapa/codigo_morto.txt` (vulture) |
 | `make shell` | bash shell inside the container |
 | `make docling PDF=<file>` | fills the Docling cache in page ranges (`RANGE=40`; skips completed ranges) |
