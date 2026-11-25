@@ -103,6 +103,8 @@ All targets run inside the container via `docker compose`.
 | `make gold-fill GOLD=<file> OUT=<new file>` | `gold fill-offsets`: rebuilds every evidence anchor against the current canonical text (all or nothing; `OUT` ≠ `GOLD`; optional `REPORT=<json>`) |
 | `make gold-convert DRAFT=<file> OUT=<new file>` | `gold convert-draft`: one-off conversion of the legacy draft into a gold file (all or nothing; the draft is never touched) |
 | `make gold-validate GOLD=<file>` | `gold validate`: checks a gold file against the ontology and the current canonical text |
+| `make eval RUN=<run.json> GOLD=<gold.json> [CANONICAL=<canonical.txt>] [TRACK=1]` | `eval`: scores a run against the gold file (strict and relaxed measures, attribution, parent-type hits, control pairs, embedded text) → `eval/reports/<run_id>/report.{json,md}` (git-ignored). `TRACK=1` also logs numbers to MLflow. No default path to `data/golden/` |
+| `make mlflow` / `make mlflow-stop` | starts/stops the local MLflow server (`http://127.0.0.1:5010`, data in `./mlflow_data/`, git-ignored); the tracker refuses any address outside this machine |
 | `make map` | generates `docs/mapa/imports.svg` (pydeps) and `docs/mapa/codigo_morto.txt` (vulture) |
 | `make shell` | bash shell inside the container |
 | `make docling PDF=<file>` | fills the Docling cache in page ranges (`RANGE=40`; skips completed ranges) |

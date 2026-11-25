@@ -1,4 +1,4 @@
-# Status — atualizado em 2026-11-24 (B02, fases 0 a 3 + revisão do formato; próxima: sessão 3b)
+# Status — atualizado em 2026-11-25 (B02 concluído, fases 0–5 e 7; pronto para mesclar)
 
 Ordem dos blocos: B04 foi antecipado antes do B02 (decisão do Leon em
 2026-11-11), porque os offsets do gabarito referenciam o texto canônico.
@@ -164,6 +164,16 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
   sessão; `docker image prune -f` e `docker builder prune -f` liberaram
   o suficiente para a imagem `dev` reconstruir).
 
+- **B02** — gabarito, avaliação e MLflow, branch `b02-gabarito` (sem push). Fases 0 a 3 e a
+  revisão do formato: `make ci`, `GoldFile`/âncora/`validate_gold`, `gold fill-offsets`,
+  `gold convert-draft` (ADR 012). Fases 4 e 5 (2026-11-25): `RunFile`; `eval` com medida
+  estrita e relaxada, linha de atribuição, acerto no tipo pai, pares de controle, texto
+  encaixado à parte e prova medida à parte da relação; `RunTracker` com `NullTracker` e
+  `MlflowTracker`, serviço `mlflow` em 127.0.0.1:5010 com dados em `./mlflow_data/`, recusa
+  de endereço fora da máquina (ADR 013). `eval/reports/*` e `mlflow_data/` fora do Git.
+  465 testes; `make check` e `make ci` verdes. A fase 6 (§9) saiu do bloco.
+  Relatório: [docs/blocks/B02.md](blocks/B02.md).
+
 ## Pendências
 
 - **B04d: `classify_titles`/`classify_headings` não unificados.** Tentei
@@ -193,7 +203,13 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - Criar repositório remoto no GitHub (map-relations) — aguardando a conta do Leon.
 - Resto do B04: leitura de TXT e EPUB; migrar url_loader ao contrato
   IngestResult (hoje é o único candidato real em codigo_morto.txt).
-- B02: gabarito em `data/golden/processo.json` (fora do Git) e comando eval.
+- B02 (Leon): resolver a relação #3 do rascunho (D4), rodar `make gold-convert` e conferir
+  `processo.gold.json` (ainda não existe); só então `make eval` roda contra a obra real.
+- Bloco do capítulo de controle (§9 do plano do B02), a abrir depois da mesclagem do B02:
+  `gold template`, `gold compare`, anotação do modelo para o cap. 5 e anotação às cegas do Leon.
+- Seção B02b do CLAUDE.md a reescrever na linha do §8 (MLflow cobre tabelas e comparação;
+  painel só com telas de domínio): aguarda a aprovação do Leon.
+- Medir o peso do `mlflow-skinny` na imagem dev (plano §14).
 - Limitação conhecida do pdf_loader: parágrafo que atravessa página sem hífen
   vira dois parágrafos; resolve-se com Docling no B04b.
 
@@ -210,8 +226,47 @@ Ordem atual: B00 → B00b → B01 → **B04** → B02 → B02b → B03 → B04 (
 - ADR 009 — B04d: camada comum de layout entre conversores (Opção B).
 - ADR 010 — Reconhecimento do MinerU Basic: campos reais, licença, custo.
 - ADR 011 — Ontologia de relações versionada; `claim_key` pelo RelationType; `alegada`.
+- ADR 012 — Formato do gabarito, âncora de evidência e leitura do gabarito pelo `eval`.
+- ADR 013 — MLflow atrás de `RunTracker`; endereço fora da máquina recusado.
 
 ## Handoff
+
+**B02 concluído** na branch `b02-gabarito` (sem push), nas fases 0 a 5 e 7 do plano
+([docs/plans/B02.md](plans/B02.md)); relatório em [docs/blocks/B02.md](blocks/B02.md). 465
+testes; `make check` e `make ci` verdes.
+
+**Decisão sobre o fluxo (Leon):** depois do commit de fechamento, o **B02 é mesclado no master**
+e o **§9 vira um bloco separado** (capítulo de controle: `gold template`, `gold compare`,
+anotação do modelo para o cap. 5 e anotação às cegas do Leon; a fase 6 saiu do B02). Esse
+bloco novo abre numa branch própria a partir do master já com o B02, e ainda precisa de
+nome, de plano e de definir quem gera a anotação do modelo para o cap. 5.
+
+**O que ficou pronto nas fases 4 e 5:**
+- `eval --run <RunFile> --gold <gabarito> [--canonical …] [--track]` / `make eval RUN=… GOLD=…
+  [CANONICAL=…] [TRACK=1]`. Medida estrita (com `asserted_by`) e relaxada (sem `asserted_by`
+  nem classe); linha de atribuição; acerto no tipo pai; pares de controle; texto encaixado à
+  parte; prova medida à parte da relação (evidência do extrator sobrepõe a do gabarito ou cobre
+  o conjunto declarado). Só relações provadas são positivos; as sem prova são ignoradas.
+  Relatório em `eval/reports/<run_id>/` (fora do Git); código de saída 0 ou 2.
+- MLflow: `make mlflow` (http://127.0.0.1:5010, dados em `./mlflow_data/`), `make mlflow-stop`;
+  `RunTracker` recusa endereço fora da máquina; só números e ids vão ao servidor, o relatório
+  vai como artefato. Execução sintética registrada e conferida na API do servidor.
+
+**Antes de mesclar / depois de mesclar:**
+1. Revisão humana de `docs/blocks/B02.md` (seção "Revisão humana" vazia).
+2. Leon: resolver a relação #3 do rascunho (D4, `prefix`), `make gold-convert`, conferir
+   `processo.gold.json` (`narrative_scope = obra`, regra do cabeçalho/rodapé, `make
+   gold-validate`). Sem isso o `eval` não roda contra a obra real.
+3. Aprovação para reescrever a seção B02b do CLAUDE.md na linha do §8 (não editada).
+4. Abrir o bloco do §9. Calibrar pesos e corte da prova em conjunto no B03 (ADR 012).
+
+**Como retomar:** ler CLAUDE.md, este arquivo e docs/plans/B02.md (§9 e §10 para o próximo
+bloco); `make check` verde. `make ci` exige `git add` antes (o contexto é o índice).
+`docs/arquitetura_sugest.md` continua não versionado (não é deste bloco). Uma execução
+sintética de teste ficou em `eval/runs/sintetica/` e `eval/reports/sintetica-01/`, ambos
+ignorados pelo Git; pode apagar.
+
+### Handoff anterior (B02a e sessões 1 a 3a do B02)
 
 **B02a concluído** (branch `b02a-ontologia`, sem push; relatório em
 [docs/blocks/B02a.md](blocks/B02a.md)). Além da parte da ontologia (YAML, `Ontology`,

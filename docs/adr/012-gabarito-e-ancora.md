@@ -80,3 +80,38 @@ por nome, sem id, e o resultado esperado dos pares de controle era texto livre.
   vira erro para o humano.
 - O gabarito pode ser anotado só com a citação (modo âncora mínima, fase 2): o
   `Anchor` deste ADR é o formato completo, gravado pelo fill-offsets.
+
+## Avaliação (B02 §7, adendo de 2026-11-25)
+
+Como o `eval` lê o gabarito, decidido na implementação do avaliador
+(`research/map_relations/evaluation/evaluate.py`):
+
+- **Positivos do gabarito:** só relações **provadas** (`relation_proof`) no escopo
+  `obra`. Relação sem prova não é acerto nem falso negativo; uma claim da execução
+  que só casa com ela (chave relaxada) também fica de fora da precisão e é contada
+  em `ignoradas_sem_prova`. Evidência `contradiz` nunca conta como prova.
+- **Duas medidas, independentes:** a estrita casa pela `claim_key` do ADR 011
+  (com `asserted_by` e escopo, sem classe); a relaxada, pela mesma chave sem
+  `asserted_by`. A relaxada começa pelo que é idêntico na estrita, para nunca
+  acertar menos do que ela. Cada item do gabarito é usado uma vez. Acerto no tipo
+  pai vem depois do exato, sobre as sobras, com a direção exigida entre tipos
+  assimétricos; na estrita o `asserted_by` também precisa ser o mesmo.
+- **Prova medida à parte da relação:** nos acertos exatos, a evidência do extrator
+  precisa **sobrepor** uma evidência `alto` do gabarito que apoia, ou **cobrir
+  todas** as que apoiam quando `provas_em_conjunto` foi declarado. Coincidir só com
+  evidência média ou baixa é "parcial"; sobrepor evidência que contradiz não vale.
+  Separadamente, mede-se a taxa de evidências localizadas
+  (`canonical[start:end] == quote`, princípio 4).
+- **Escopo:** a claim é "fora do escopo" só se tiver evidência localizada e
+  nenhuma estiver num capítulo do gabarito. Sem evidência localizada, fica no
+  escopo e conta contra a precisão (nunca chute). Claims com a mesma chave estrita
+  são fundidas, com as evidências somadas.
+- **Texto encaixado:** sai das métricas principais nos dois lados e é medido à
+  parte. Claim `obra` que casa com item `texto_encaixado` é falso positivo e
+  entra em `obra_sobre_item_encaixado`.
+- **Pares de controle:** violação é qualquer claim, de qualquer tipo, direção ou
+  escopo, num par dentro dos capítulos dele.
+- **F1** = 2·TP / (2·TP + FP + FN); P e R ficam indefinidos (nulos) sem
+  denominador. Macro é a média dos F1 dos tipos presentes em qualquer dos lados.
+- **Tipo inválido** (inexistente ou abstrato) é falso positivo, agrupado em
+  `(tipo_invalido)`; ele nunca casa.

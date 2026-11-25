@@ -3,6 +3,8 @@
 
 COMPOSE = docker compose
 RUN = $(COMPOSE) run --rm app
+# `make eval RUN=<execução>` sobrescreve RUN na linha de comando; o alvo eval usa RUN_APP.
+RUN_APP = $(COMPOSE) run --rm app
 name = $(notdir $(PDF))
 stem = $(basename $(notdir $(PDF)))
 
@@ -10,7 +12,7 @@ stem = $(basename $(notdir $(PDF)))
 # mudar as flags exige mudar o slug (e vice-versa) — cria um cache novo.
 DOCLING_FLAGS = --no-ocr --no-tables --image-export-mode placeholder --page-batch-size 1
 
-.PHONY: test lint typecheck schema schema-check check ci ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed
+.PHONY: eval mlflow mlflow-stop test lint typecheck schema schema-check check ci ci-test ci-prod gold-fill gold-convert gold-validate ingest map shell docling compare compare-all clean-processed
 
 test:
 	$(RUN) uv run pytest
@@ -61,6 +63,26 @@ ci-prod:
 	docker run --rm $(CI_PROD) python -c "import map_relations.core.models"
 	docker run --rm $(CI_PROD) python -m map_relations ingest --help
 	docker run --rm $(CI_PROD) sh -c "test ! -e .github && test ! -e Makefile"
+
+# Avaliação (B02 §7) e MLflow (§8). Sem caminho padrão para data/golden/.
+# make eval RUN=eval/runs/x/run.json GOLD=data/golden/processo.gold.json [TRACK=1]
+# make mlflow   -> interface em http://127.0.0.1:5010 (dados em ./mlflow_data/)
+eval:
+ifndef RUN
+	$(error uso: make eval RUN=<execução> GOLD=<gabarito> [TRACK=1] [CANONICAL=<canonical.txt>])
+endif
+ifndef GOLD
+	$(error uso: make eval RUN=<execução> GOLD=<gabarito> [TRACK=1] [CANONICAL=<canonical.txt>])
+endif
+	$(RUN_APP) python -m map_relations eval --run $(RUN) --gold $(GOLD) $(if $(CANONICAL),--canonical $(CANONICAL)) $(if $(TRACK),--track)
+
+mlflow:
+	mkdir -p mlflow_data
+	$(COMPOSE) --profile mlflow up -d mlflow
+	@echo "MLflow em http://127.0.0.1:5010 (make mlflow-stop para parar)"
+
+mlflow-stop:
+	$(COMPOSE) --profile mlflow stop mlflow
 
 # Gabarito (B02 §5 e §6). Sem caminho padrão para data/golden/: sempre explícito.
 # make gold-fill GOLD=data/golden/a.json OUT=data/golden/b.json

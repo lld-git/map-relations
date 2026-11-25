@@ -1,6 +1,6 @@
 # Fluxo de dados — único diagrama de fluxo do projeto
 
-Atualizado em 2026-11-12, após o B04c (Markdown intermediário, ADR 008).
+Atualizado em 2026-11-25, após o B02 (avaliação e MLflow); ingestão inalterada desde o B04c (ADR 008).
 Linhas cheias = confirmado no código (cada seta cita arquivo.py:função).
 Tracejado = planejado.
 
@@ -37,9 +37,17 @@ flowchart TB
     CACHE -->|"__main__.py:cmd_compare → docling_compare.py:compare"| COMPARE
 
     SEG["segmentação + N0/N1 (B05)"]
-    EVAL["eval contra gabarito (B02)"]
+    GOLD["gabarito<br/>(data/golden/, fora do Git)"]
+    RUN["RunFile (B03 emitirá)"]
+    EVAL["eval_cli.py:cmd_eval → evaluate.py:evaluate"]
+    REP["eval/reports/&lt;run_id&gt;/report.{json,md}<br/>(fora do Git)"]
+    TRK["RunTracker → MlflowTracker<br/>127.0.0.1:5010, ./mlflow_data/"]
     RESULT -.->|"planejado: pipeline spaCy + regras (B05)"| SEG
-    RESULT -.->|"planejado: offsets do gabarito usam o texto canônico (B02)"| EVAL
+    RESULT -->|"fill_offsets.py:load_canonical (offsets e hash do gabarito)"| EVAL
+    GOLD -->|"gold.py:load_gold + validate_gold"| EVAL
+    RUN -->|"run_file.py:load_run"| EVAL
+    EVAL -->|"report.py:render_markdown"| REP
+    EVAL -->|"--track: só números e ids; o relatório vai como artefato"| TRK
 ```
 
 Notas confirmadas no código:

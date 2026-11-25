@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "ClaimClass": {
+      "enum": [
+        "afirmada",
+        "alegada",
+        "inferida",
+        "coocorrencia",
+        "interpretacao"
+      ],
+      "title": "ClaimClass",
+      "type": "string"
+    },
+    "NarrativeScope": {
+      "enum": [
+        "obra",
+        "texto_encaixado"
+      ],
+      "title": "NarrativeScope",
+      "type": "string"
+    },
+    "RunCall": {
+      "additionalProperties": false,
+      "properties": {
+        "json_valid": {
+          "title": "Json Valid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "json_valid"
+      ],
+      "title": "RunCall",
+      "type": "object"
+    },
+    "RunClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "asserted_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asserted By"
+        },
+        "class": {
+          "$ref": "#/$defs/ClaimClass"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/RunEvidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "lens": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lens"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "narrative_scope": {
+          "$ref": "#/$defs/NarrativeScope",
+          "default": "obra"
+        },
+        "object": {
+          "title": "Object",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "type",
+        "object",
+        "class"
+      ],
+      "title": "RunClaim",
+      "type": "object"
+    },
+    "RunEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "aliases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "RunEntity",
+      "type": "object"
+    },
+    "RunEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "endOffset": {
+          "minimum": 1,
+          "title": "Endoffset",
+          "type": "integer"
+        },
+        "quote": {
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "startOffset": {
+          "minimum": 0,
+          "title": "Startoffset",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "quote",
+        "startOffset",
+        "endOffset"
+      ],
+      "title": "RunEvidence",
+      "type": "object"
+    },
+    "RunMeta": {
+      "additionalProperties": false,
+      "description": "Princípio 10: o que produziu o resultado.",
+      "properties": {
+        "lens": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lens"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        },
+        "prompt_version": {
+          "minLength": 1,
+          "title": "Prompt Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "prompt_version"
+      ],
+      "title": "RunMeta",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "calls": {
+      "items": {
+        "$ref": "#/$defs/RunCall"
+      },
+      "title": "Calls",
+      "type": "array"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/RunClaim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/RunEntity"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "meta": {
+      "$ref": "#/$defs/RunMeta"
+    },
+    "run_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "meta"
+  ],
+  "title": "RunFile",
+  "type": "object"
+}

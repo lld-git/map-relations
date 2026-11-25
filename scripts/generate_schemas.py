@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from map_relations.core import models
 from map_relations.evaluation.gold import GoldFile
+from map_relations.evaluation.run_file import RunFile
 
 ROOT = Path(__file__).parent.parent
 SCHEMAS_DIR = ROOT / "contracts" / "schemas"
@@ -38,6 +39,7 @@ DOMAIN_MODELS: list[type[BaseModel]] = [
 # Contratos que não são do domínio; o nome do arquivo é fixo (B02 §3).
 EXTRA_SCHEMAS: dict[str, type[BaseModel]] = {
     "gold.schema.json": GoldFile,
+    "run.schema.json": RunFile,
 }
 
 

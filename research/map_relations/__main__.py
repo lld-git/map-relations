@@ -6,6 +6,7 @@
     python -m map_relations clean [--apply]     # pastas órfãs em processed/
     python -m map_relations ontology check [arquivo]  # valida a ontologia de relações
     python -m map_relations gold fill-offsets|convert-draft|validate  # gabarito (B02)
+    python -m map_relations eval --run <arq> --gold <arq> [--track]    # avaliação (B02)
 
 O arquivo deve estar em data/raw/. Saída em data/processed/<hash_do_arquivo>/.
 documento.md é a fonte revisada pelo humano: nunca é sobrescrito sem --force-md.
@@ -23,7 +24,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from map_relations.core.ingest_contract import IngestResult, RemovedItem
-from map_relations.evaluation import gold_cli
+from map_relations.evaluation import eval_cli, gold_cli
 from map_relations.ingest.alerts import ConversionAlert, classify_conversion_alerts
 from map_relations.ingest.canonical import build_ingest_result, pdf_pages_to_blocks
 from map_relations.ingest.canonical import layout_items as pdf_loader_layout_items
@@ -42,6 +43,7 @@ from map_relations.ontology_io import load_ontology
 ROOT = Path.cwd()
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
+REPORTS_DIR = ROOT / "eval" / "reports"
 
 _PANDOC_KINDS = {".epub": "epub", ".docx": "docx", ".html": "html", ".htm": "html"}
 
@@ -389,7 +391,22 @@ def main(argv: list[str] | None = None) -> int:
     p_val.add_argument("--gold", type=Path, required=True)
     p_val.add_argument("--canonical", type=Path, help=canon_help)
 
+    p_eval = sub.add_parser("eval", help="avalia uma execução contra o gabarito (B02 §7)")
+    p_eval.add_argument("--run", type=Path, required=True, help="arquivo de execução (RunFile)")
+    p_eval.add_argument("--gold", type=Path, required=True, help="gabarito (sem padrão)")
+    p_eval.add_argument("--canonical", type=Path, help=canon_help)
+    p_eval.add_argument("--reports", type=Path, default=REPORTS_DIR, help="pasta dos relatórios")
+    p_eval.add_argument(
+        "--track",
+        action="store_true",
+        help="registra no MLflow (MLFLOW_TRACKING_URI do .env; recusa endereço fora da máquina)",
+    )
+
     args = parser.parse_args(argv)
+    if args.command == "eval":
+        return eval_cli.cmd_eval(
+            args.run, args.gold, args.canonical, args.reports, PROCESSED_DIR, args.track
+        )
     if args.command == "ingest":
         return cmd_ingest(args.arquivo, args.route, args.force_md)
     if args.command == "prepare":

@@ -22,6 +22,13 @@ services:
       # lidos por tests/test_ci_sync.py (make ci × ci.yml)
       - ./Makefile:/app/Makefile:ro
       - ./.github:/app/.github:ro
+      # lidos por tests/test_mlflow_config.py (porta, volume e Git ignorados)
+      - ./docker-compose.yml:/app/docker-compose.yml:ro
+      - ./.gitignore:/app/.gitignore:ro
+      - ./.dockerignore:/app/.dockerignore:ro
+    environment:
+      # eval --track: só endereço da máquina; o padrão é o serviço mlflow (make mlflow)
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-http://mlflow:5000}
     env_file:
       - path: .env
         required: false
@@ -68,6 +75,24 @@ services:
       - mineru_models:/root/.mineru
     profiles:
       - mineru
+
+  mlflow:
+    # Rastreamento das avaliações (B02 §8, ADR 013). Só com --profile mlflow;
+    # nunca no CI. Publicado apenas em 127.0.0.1:5010. Versão igual à do
+    # mlflow-skinny do grupo dev (pyproject.toml). Dados em ./mlflow_data/ (fora do Git).
+    image: ghcr.io/mlflow/mlflow:v3.18.0
+    user: "0:0"
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts "mlflow:5000,localhost:5010,127.0.0.1:5010"
+    ports:
+      - "127.0.0.1:5010:5000"
+    volumes:
+      - ./mlflow_data:/mlflow
+    profiles:
+      - mlflow
 
 volumes:
   mineru_models: {}

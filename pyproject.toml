@@ -30,6 +30,8 @@ dev = [
     # docling==2.150.0 pede docling-core>=2.106.0,<3.0.0 (faixa, sem lock);
     # 2.107.1 é a versão mais recente da faixa hoje nos dois lugares.
     "docling-core==2.107.1",
+    # cliente do RunTracker (B02 §8, ADR 013); mesma versão do servidor no compose.
+    "mlflow-skinny==3.18.0",
 ]
 
 [build-system]

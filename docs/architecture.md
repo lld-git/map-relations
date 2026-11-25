@@ -78,6 +78,22 @@ canônico e invalida offsets registrados.
 - `DocumentParser` — `parse(path) -> IngestResult`. Implementado por
   `PdfParser`; DoclingParser planejado (B04b).
 - `ProjectStore` — persistência; sem implementação ainda (planejado).
+- `RunTracker` — registro das execuções de avaliação (`start`, `log_params`,
+  `log_metrics`, `log_artifact`, `set_tags`, `end`). Adaptadores `NullTracker`
+  (padrão) e `MlflowTracker`; `check_local_tracking_uri` recusa endereço fora da
+  máquina ([ADR 013](adr/013-mlflow-atras-de-runtracker.md)).
+
+### Avaliação (`evaluation/`)
+
+`python -m map_relations eval --run <RunFile> --gold <gabarito>` lê o gabarito
+([ADR 012](adr/012-gabarito-e-ancora.md)) e uma execução (`RunFile`, schema em
+`contracts/schemas/run.schema.json`), alinha pessoas por nome ou alias, casa as
+claims em duas medidas (estrita e relaxada) e grava `report.json` e `report.md` em
+`eval/reports/<run_id>/` (fora do Git). Com `--track`, registra os números no
+MLflow local. Código de saída 0 com relatório e 2 com gabarito, execução ou
+endereço inválidos. Módulos: `run_file` (formato), `matching` (alinhamento e
+casamento), `evaluate` (métricas), `report` (métricas planas e Markdown),
+`eval_cli`; a camada de rastreamento fica em `tracking/`.
 
 ## Componentes (nível de módulo)
 
@@ -92,6 +108,18 @@ flowchart BT
         protocols["core.protocols"]
         ontology["core.ontology"]
         lock["core.ontology_lock"]
+    end
+    subgraph evaluation
+        gold["evaluation.gold"]
+        runfile["evaluation.run_file"]
+        matching["evaluation.matching"]
+        evaluate["evaluation.evaluate"]
+        report["evaluation.report"]
+        evalcli["evaluation.eval_cli"]
+    end
+    subgraph tracking
+        nulltr["tracking.null_tracker"]
+        mlflowtr["tracking.mlflow_tracker"]
     end
     ontoio["ontology_io"]
     genonto["scripts.generate_ontology"]
@@ -127,6 +155,19 @@ flowchart BT
     genonto --> ontoio
     genonto --> lock
     cli --> ontoio
+    cli --> evalcli
+    matching --> gold
+    matching --> runfile
+    matching --> ontology
+    evaluate --> matching
+    evaluate --> gold
+    report --> matching
+    evalcli --> evaluate
+    evalcli --> report
+    evalcli --> nulltr
+    evalcli --> protocols
+    evalcli -.-> mlflowtr
+    mlflowtr --> protocols
     protocols --> contract
     document --> ids
     document --> models
